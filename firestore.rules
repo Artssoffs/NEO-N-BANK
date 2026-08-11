@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // User Profile
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'balance', 'cashBalance', 'requireBiometrics', 'jar', 'createdAt', 'updatedAt'])
+        && data.name is string && data.name.size() <= 100
+        && data.balance is number && data.balance >= 0
+        && data.cashBalance is number && data.cashBalance >= 0
+        && data.requireBiometrics is bool
+        && data.jar is map
+        && data.jar.keys().hasAll(['title', 'currentAmount', 'targetAmount'])
+        && data.jar.title is string && data.jar.title.size() <= 100
+        && data.jar.currentAmount is number && data.jar.currentAmount >= 0
+        && data.jar.targetAmount is number && data.jar.targetAmount >= 0;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+    }
+
+    // Transactions
+    function isValidTransaction(data, userId) {
+      return data.keys().hasAll(['userId', 'type', 'amount', 'title', 'category', 'date', 'status', 'receiptNumber', 'isCash', 'paymentMethod'])
+        && data.userId == userId
+        && data.type in ['income', 'expense']
+        && data.amount is number && data.amount >= 1
+        && data.title is string && data.title.size() <= 150
+        && data.category is string && data.category.size() <= 100
+        && ( !('description' in data.keys()) || (data.description is string && data.description.size() <= 300) )
+        && data.date is string
+        && data.status in ['success', 'pending', 'failed']
+        && data.receiptNumber is string && data.receiptNumber.size() <= 50
+        && data.isCash is bool
+        && data.paymentMethod in ['cash', 'atm', 'sense_card']
+        && ( !('location' in data.keys()) || (data.location is string && data.location.size() <= 200) );
+    }
+
+    match /users/{userId}/transactions/{transactionId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(transactionId);
+      allow list: if isOwner(userId) && isValidId(userId) && resource.data.userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(transactionId)
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && isValidTransaction(incoming(), userId);
+      // Transactions are immutable history
+      allow update, delete: if false;
+    }
+
+    // Cash Envelopes
+    function isValidCashEnvelope(data, userId) {
+      return data.keys().hasAll(['userId', 'name', 'amount', 'targetAmount', 'category', 'iconName'])
+        && data.userId == userId
+        && data.name is string && data.name.size() <= 100
+        && data.amount is number && data.amount >= 0
+        && data.targetAmount is number && data.targetAmount >= 1
+        && data.category is string && data.category.size() <= 100
+        && data.iconName is string && data.iconName.size() <= 50;
+    }
+
+    match /users/{userId}/cashEnvelopes/{envelopeId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(envelopeId);
+      allow list: if isOwner(userId) && isValidId(userId) && resource.data.userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(envelopeId)
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && isValidCashEnvelope(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(envelopeId)
+        && isValidCashEnvelope(incoming(), userId)
+        && incoming().diff(existing()).affectedKeys().hasAny(['name', 'amount', 'targetAmount', 'category', 'iconName']);
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(envelopeId);
+    }
+
+    // Security Logs
+    function isValidSecurityLog(data, userId) {
+      return data.keys().hasAll(['userId', 'type', 'device', 'timestamp', 'status'])
+        && data.userId == userId
+        && data.type in ['login', 'settings_change', 'biometrics_auth']
+        && data.device is string && data.device.size() <= 200
+        && data.timestamp is string
+        && data.status in ['success', 'failed'];
+    }
+
+    match /users/{userId}/securityLogs/{logId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      allow list: if isOwner(userId) && isValidId(userId) && resource.data.userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && isValidSecurityLog(incoming(), userId);
+      allow update, delete: if false; // immutable logs
+    }
+  }
+}

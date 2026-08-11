@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and balances",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "balance": { "type": "number", "minimum": 0 },
+        "cashBalance": { "type": "number", "minimum": 0 },
+        "requireBiometrics": { "type": "boolean" },
+        "jar": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string", "maxLength": 100 },
+            "currentAmount": { "type": "number", "minimum": 0 },
+            "targetAmount": { "type": "number", "minimum": 0 }
+          },
+          "required": ["title", "currentAmount", "targetAmount"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "balance", "cashBalance", "requireBiometrics", "jar", "createdAt", "updatedAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A financial transaction (cash or card)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number", "minimum": 1 },
+        "title": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 300 },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["success", "pending", "failed"] },
+        "receiptNumber": { "type": "string", "maxLength": 50 },
+        "isCash": { "type": "boolean" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "atm", "sense_card"] },
+        "location": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["userId", "type", "amount", "title", "category", "date", "status", "receiptNumber", "isCash", "paymentMethod"]
+    },
+    "CashEnvelope": {
+      "title": "Cash Envelope",
+      "description": "A cash envelope for budgeting",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "amount": { "type": "number", "minimum": 0 },
+        "targetAmount": { "type": "number", "minimum": 1 },
+        "category": { "type": "string", "maxLength": 100 },
+        "iconName": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["userId", "name", "amount", "targetAmount", "category", "iconName"]
+    },
+    "SecurityLog": {
+      "title": "Security Log",
+      "description": "Security events and logins",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["login", "settings_change", "biometrics_auth"] },
+        "device": { "type": "string", "maxLength": 200 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["success", "failed"] }
+      },
+      "required": ["userId", "type", "device", "timestamp", "status"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user balances and settings"
+    },
+    "users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Stores all transactions for a user"
+    },
+    "users/{userId}/cashEnvelopes/{envelopeId}": {
+      "schema": { "$ref": "#/entities/CashEnvelope" },
+      "description": "Stores budget envelopes for a user"
+    },
+    "users/{userId}/securityLogs/{logId}": {
+      "schema": { "$ref": "#/entities/SecurityLog" },
+      "description": "Stores security events for a user"
+    }
+  }
+}

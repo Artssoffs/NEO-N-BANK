@@ -1,0 +1,6 @@
+{
+  "name": "Ne-OBank",
+  "description": "Next-gen turquoise neobank with Card & Cash Mode, ATM exchange, cashback categories, cash envelopes, currency converter, and official stamped PDF receipts.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
