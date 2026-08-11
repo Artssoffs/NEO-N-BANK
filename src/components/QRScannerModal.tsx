@@ -94,7 +94,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
     stopScanner();
     const parsed = parseScannedCode(decodedText);
     setScannedResult(parsed);
-    showToast('NEO-N•BANK Scanner', 'QR/Штрихкод розпізнано!', 'success');
+    showToast('Ne•OBank App Scanner', 'QR/Штрихкод розпізнано!', 'success');
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,22 +152,22 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-[#0B1220] border border-cyan-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative">
+      <div className="w-full max-w-sm bg-[#0B1220] border border-violet-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative">
         
         {/* Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-cyan-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-violet-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
 
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-cyan-500/20 pb-3 relative z-10">
+        <div className="flex justify-between items-center border-b border-violet-500/20 pb-3 relative z-10">
           <div className="flex items-center space-x-2">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center">
-              <Scan className="w-5 h-5 animate-pulse text-cyan-400" />
+            <div className="w-9 h-9 rounded-2xl bg-violet-500/20 border border-violet-400/40 text-violet-300 flex items-center justify-center">
+              <Scan className="w-5 h-5 animate-pulse text-violet-400" />
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
                 Сканер QR / Штрихкоду
               </h3>
-              <p className="text-[10px] text-cyan-300/70">
+              <p className="text-[10px] text-violet-300/70">
                 Автозаповнення реквізитів платежу
               </p>
             </div>
@@ -183,33 +183,33 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
         {/* Scanner View / Result */}
         <div className="relative z-10 space-y-3">
           {scannedResult ? (
-            <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-3 animate-in zoom-in-95 duration-200">
-              <div className="flex items-center space-x-2 text-cyan-300 font-bold text-xs">
+            <div className="p-4 rounded-2xl bg-violet-950/40 border border-violet-500/40 space-y-3 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center space-x-2 text-violet-300 font-bold text-xs">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Дані успішно розпізнано!</span>
               </div>
 
-              <div className="space-y-1.5 text-xs font-mono bg-black/50 p-3 rounded-xl border border-cyan-500/20">
+              <div className="space-y-1.5 text-xs font-mono bg-black/50 p-3 rounded-xl border border-violet-500/20">
                 <div className="flex justify-between">
-                  <span className="text-cyan-200/60">Тип:</span>
-                  <span className="text-cyan-300 font-bold uppercase">{scannedResult.type}</span>
+                  <span className="text-violet-200/60">Тип:</span>
+                  <span className="text-violet-300 font-bold uppercase">{scannedResult.type}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-cyan-200/60">Реквізит:</span>
+                  <span className="text-violet-200/60">Реквізит:</span>
                   <span className="text-white font-bold truncate max-w-[170px]" title={scannedResult.targetNumber}>
                     {scannedResult.targetNumber}
                   </span>
                 </div>
                 {scannedResult.amount && (
                   <div className="flex justify-between">
-                    <span className="text-cyan-200/60">Сума:</span>
+                    <span className="text-violet-200/60">Сума:</span>
                     <span className="text-emerald-400 font-extrabold">{scannedResult.amount} ₴</span>
                   </div>
                 )}
                 {scannedResult.comment && (
                   <div className="flex justify-between">
-                    <span className="text-cyan-200/60">Призначення:</span>
-                    <span className="text-cyan-200 truncate max-w-[170px]" title={scannedResult.comment}>
+                    <span className="text-violet-200/60">Призначення:</span>
+                    <span className="text-violet-200 truncate max-w-[170px]" title={scannedResult.comment}>
                       {scannedResult.comment}
                     </span>
                   </div>
@@ -228,7 +228,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
                 </button>
                 <button
                   onClick={handleApplyResult}
-                  className="py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/20 transition"
+                  className="py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 transition"
                 >
                   Заповнити формати
                 </button>
@@ -237,17 +237,17 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
           ) : (
             <div className="space-y-3">
               {/* Video Scanner Container */}
-              <div className="relative rounded-2xl overflow-hidden bg-black border border-cyan-500/30 min-h-[240px] flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden bg-black border border-violet-500/30 min-h-[240px] flex items-center justify-center">
                 <div id={scannerContainerId} className="w-full h-full min-h-[240px]" />
 
                 {/* Overlaid QR Frame Guide */}
                 {isScanning && (
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-48 h-48 border-2 border-cyan-400/80 rounded-2xl shadow-[0_0_20px_rgba(34,211,238,0.3)] relative animate-pulse">
-                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-cyan-300" />
-                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-cyan-300" />
-                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-cyan-300" />
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-cyan-300" />
+                    <div className="w-48 h-48 border-2 border-violet-400/80 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.3)] relative animate-pulse">
+                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-violet-300" />
+                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-violet-300" />
+                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-violet-300" />
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-violet-300" />
                     </div>
                   </div>
                 )}
@@ -258,7 +258,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
                     <p className="text-xs text-white/90">{cameraError}</p>
                     <button
                       onClick={handleTestDemoScan}
-                      className="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-bold mt-2 hover:bg-cyan-500/30 transition"
+                      className="px-3 py-1.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-violet-300 text-xs font-bold mt-2 hover:bg-violet-500/30 transition"
                     >
                       🧪 Симулювати QR IBAN (Тест)
                     </button>
@@ -278,16 +278,16 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
 
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 py-2.5 rounded-xl bg-[#131B2E] border border-cyan-500/20 hover:bg-[#1C2740] text-cyan-300 text-xs font-bold flex items-center justify-center space-x-1.5 transition"
+                  className="flex-1 py-2.5 rounded-xl bg-[#131B2E] border border-violet-500/20 hover:bg-[#1C2740] text-violet-300 text-xs font-bold flex items-center justify-center space-x-1.5 transition"
                 >
-                  <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                  <Upload className="w-3.5 h-3.5 text-violet-400" />
                   <span>Фото з галереї</span>
                 </button>
 
                 <button
                   onClick={toggleTorch}
                   disabled={!isScanning}
-                  className="py-2.5 px-3 rounded-xl bg-[#131B2E] border border-cyan-500/20 hover:bg-[#1C2740] text-amber-300 text-xs font-bold flex items-center justify-center transition disabled:opacity-40"
+                  className="py-2.5 px-3 rounded-xl bg-[#131B2E] border border-violet-500/20 hover:bg-[#1C2740] text-amber-300 text-xs font-bold flex items-center justify-center transition disabled:opacity-40"
                   title="Увімкнути спалах"
                 >
                   <Flashlight className="w-4 h-4" />
@@ -295,7 +295,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
 
                 <button
                   onClick={handleTestDemoScan}
-                  className="py-2.5 px-3 rounded-xl bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 text-xs font-bold transition"
+                  className="py-2.5 px-3 rounded-xl bg-violet-500/20 border border-violet-400/30 text-violet-300 hover:bg-violet-500/30 text-xs font-bold transition"
                   title="Тестовий сканування"
                 >
                   🧪 Тест

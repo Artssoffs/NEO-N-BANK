@@ -12,8 +12,6 @@ export const db = getFirestore(app, dbId);
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/documents');
 provider.addScope('https://www.googleapis.com/auth/drive');
-provider.addScope('https://www.googleapis.com/auth/keep');
-provider.addScope('https://www.googleapis.com/auth/keep.readonly');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
 provider.addScope('https://www.googleapis.com/auth/tasks');

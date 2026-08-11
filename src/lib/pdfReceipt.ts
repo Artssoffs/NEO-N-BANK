@@ -1,190 +1,215 @@
 import { jsPDF } from 'jspdf';
 import { Transaction } from '../store';
 
-// Helper to generate a realistic circular bank stamp as Data URL
-function createBankStampCanvas(receiptNo: string): string {
+export function generateOfficialPDFReceipt(tx: Transaction) {
+  // Create a high-DPI canvas to render the receipt with full Cyrillic support
   const canvas = document.createElement('canvas');
-  canvas.width = 300;
-  canvas.height = 300;
+  const scale = 2; // High resolution (approx 1654 x 2338 px for A4)
+  canvas.width = 794 * scale; 
+  canvas.height = 1123 * scale;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
 
-  // Outer circle
-  ctx.strokeStyle = '#0891B2'; // Turquoise/Cyan seal
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.arc(150, 150, 135, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Inner circle
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(150, 150, 105, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Text along arc
-  ctx.fillStyle = '#0891B2';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.textAlign = 'center';
-
-  // Circular text
-  const textTop = "АКЦІОНЕРНЕ ТОВАРИСТВО «НЕ-ОБАНК»";
-  const radius = 120;
-  for (let i = 0; i < textTop.length; i++) {
-    const angle = -Math.PI / 1.3 + (i / textTop.length) * (Math.PI * 1.5);
-    ctx.save();
-    ctx.translate(150 + Math.cos(angle) * radius, 150 + Math.sin(angle) * radius);
-    ctx.rotate(angle + Math.PI / 2);
-    ctx.fillText(textTop[i], 0, 0);
-    ctx.restore();
+  if (!ctx) {
+    alert('Помилка створення генератора PDF');
+    return;
   }
 
-  // Center text & badge
-  ctx.fillStyle = '#06B6D4';
-  ctx.font = 'bold 20px sans-serif';
-  ctx.fillText("НЕ-ОБАНК", 150, 125);
+  ctx.scale(scale, scale);
 
-  ctx.fillStyle = '#0891B2';
-  ctx.font = '12px sans-serif';
-  ctx.fillText("ЛІЦЕНЗІЯ НБУ №302", 150, 148);
-  ctx.fillText("ЕЕЛЕКТРОННИЙ ПІДПИС", 150, 168);
-  ctx.fillText(`ЧЕК № ${receiptNo}`, 150, 188);
+  // Background
+  ctx.fillStyle = '#F8FAFC';
+  ctx.fillRect(0, 0, 794, 1123);
 
-  // Star decoration
-  ctx.font = '16px sans-serif';
-  ctx.fillText("★ ОПЛАЧЕНО ★", 150, 215);
+  // Top header bar
+  ctx.fillStyle = '#4F46E5'; // Premium Royal Indigo
+  ctx.fillRect(0, 0, 794, 90);
 
-  return canvas.toDataURL('image/png');
-}
+  // Logo & Bank Name
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillText('Ne•OBank App', 45, 55);
 
-export function generateOfficialPDFReceipt(tx: Transaction) {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
+  ctx.font = '14px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('ОФІЦІЙНА ЕЛЕКТРОННА КВИТАНЦІЯ-ЧЕК', 749, 53);
 
-  // Background light tint
-  doc.setFillColor(250, 252, 253);
-  doc.rect(0, 0, 210, 297, 'F');
+  // White Document Box
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1.5;
+  
+  // Draw rounded box for receipt
+  const boxX = 45;
+  const boxY = 120;
+  const boxW = 704;
+  const boxH = 920;
+  const radius = 12;
 
-  // Top header bar (Ne-OBank Turquoise)
-  doc.setFillColor(8, 145, 178); // Teal
-  doc.rect(0, 0, 210, 28, 'F');
+  ctx.beginPath();
+  ctx.moveTo(boxX + radius, boxY);
+  ctx.lineTo(boxX + boxW - radius, boxY);
+  ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+  ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+  ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+  ctx.lineTo(boxX + radius, boxY + boxH);
+  ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+  ctx.lineTo(boxX, boxY + radius);
+  ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('НЕ-ОБАНК', 15, 18);
+  let y = 165;
+  ctx.textAlign = 'left';
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Електронний квитанція-чек про фінансову операцію', 205, 18, { align: 'right' });
+  // Receipt Title
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(`КВИТАНЦІЯ № ${tx.receiptNumber}`, 75, y);
 
-  // Document Container Box
-  doc.setDrawColor(220, 225, 230);
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(12, 36, 186, 240, 4, 4, 'FD');
+  y += 24;
+  ctx.fillStyle = '#64748B';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('Банк платника / отримувача: АТ «Ne•OBank App» (Ліцензія НБУ №302 від 18.10.2018 р.)', 75, y);
 
-  let y = 50;
-
-  // Header Title
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('КВИТАНЦІЯ / ЕЛЕКТРОННИЙ ЧЕК № ' + tx.receiptNumber, 20, y);
-
-  y += 6;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Банк платника/отримувача: АТ «НЕ-ОБАНК» (Ліцензія НБУ №302 від 18.10.2018 р.)', 20, y);
-
-  y += 10;
-  doc.setDrawColor(226, 232, 240);
-  doc.line(20, y, 190, y);
+  y += 20;
+  ctx.strokeStyle = '#CBD5E1';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(75, y);
+  ctx.lineTo(719, y);
+  ctx.stroke();
 
   // Table Details
-  y += 12;
-  const details = [
-    ['Дата та час транзакції:', new Date(tx.date).toLocaleString('uk-UA')],
+  y += 35;
+  const isIncome = tx.type === 'income';
+  const formattedDate = new Date(tx.date).toLocaleString('uk-UA', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  const rows = [
+    ['Дата та час транзакції:', formattedDate],
     ['Номер документу (RRN):', tx.receiptNumber],
     ['Код авторизації:', `AUTH-${Math.floor(100000 + Math.random() * 900000)}`],
-    ['Спосіб оплати:', tx.isCash ? 'Готівковий гаманець (Cash Mode)' : (tx.paymentMethod === 'atm' ? 'Банкомат НЕ-ОБАНК' : 'Картка НЕ-ОБАНК')],
-    ['Тип операції:', tx.type === 'income' ? 'Зарахування / Прибуток' : 'Списання / Витрата'],
-    ['Найменування платежу:', tx.title],
+    ['Спосіб оплати:', tx.isCash ? 'Готівковий гаманець (Cash Wallet)' : (tx.paymentMethod === 'atm' ? 'Банкомат Ne•OBank App' : 'Картка Luxury Platinum')],
+    ['Тип операції:', isIncome ? 'Зарахування / Прибуток' : 'Списання / Витрата'],
+    ['Назва платежу / Призначення:', tx.title],
     ['Категорія:', tx.category],
-    ['Опис операції:', tx.description || 'Електронна фінансова операція через Ne-OBank'],
-    ['Місце проведення:', tx.location || 'м. Київ, Україна (Електронний банкінг)'],
+    ['Деталі та опис:', tx.description || 'Електронна транзакція в Ne•OBank App Core'],
+    ['Місце проведення:', tx.location || 'м. Київ, Україна (Digital Banking)'],
     ['Статус платежу:', 'УСПІШНО ВИКОНАНО (SUCCESS)']
   ];
 
-  details.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.setFontSize(9.5);
-    doc.text(label, 20, y);
+  rows.forEach(([label, value]) => {
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(label, 75, y);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(value, 85, y);
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(value, 300, y);
 
-    y += 8;
+    y += 28;
   });
 
-  y += 4;
-  doc.line(20, y, 190, y);
+  y += 10;
+  ctx.beginPath();
+  ctx.moveTo(75, y);
+  ctx.lineTo(719, y);
+  ctx.stroke();
 
   // Total Amount Box
-  y += 10;
-  doc.setFillColor(240, 253, 250);
-  doc.setDrawColor(20, 184, 166);
-  doc.roundedRect(20, y, 170, 22, 3, 3, 'FD');
+  y += 25;
+  ctx.fillStyle = isIncome ? '#ECFDF5' : '#F5F3FF'; // Light violet for expenses
+  ctx.strokeStyle = isIncome ? '#10B981' : '#8B5CF6'; // Violet border
+  ctx.lineWidth = 2;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Загальна сума операції:', 26, y + 14);
+  ctx.beginPath();
+  ctx.roundRect(75, y, 644, 70, 10);
+  ctx.fill();
+  ctx.stroke();
 
-  doc.setFontSize(16);
-  if (tx.type === 'income') {
-    doc.setTextColor(16, 185, 129); // Green
-    doc.text(`+${(tx.amount / 100).toFixed(2)} UAH`, 184, y + 14, { align: 'right' });
-  } else {
-    doc.setTextColor(13, 148, 136); // Teal
-    doc.text(`-${(tx.amount / 100).toFixed(2)} UAH`, 184, y + 14, { align: 'right' });
-  }
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('Загальна сума операції:', 95, y + 42);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = isIncome ? '#059669' : '#7C3AED'; // Rich green / deep violet
+  ctx.font = 'bold 26px sans-serif';
+  const sign = isIncome ? '+' : '-';
+  ctx.fillText(`${sign}${(tx.amount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} UAH`, 700, y + 44);
 
   // Official Stamp & Digital Signature Section
-  y += 34;
+  ctx.textAlign = 'left';
+  y += 110;
 
-  try {
-    const stampDataUrl = createBankStampCanvas(tx.receiptNumber);
-    if (stampDataUrl) {
-      doc.addImage(stampDataUrl, 'PNG', 135, y, 50, 50);
-    }
-  } catch (e) {
-    console.warn("Could not render stamp canvas image to PDF", e);
-  }
+  // Render Official Bank Stamp on Canvas
+  const stampX = 520;
+  const stampY = y - 20;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Кваліфікований електронний підпис та печатка:', 20, y + 6);
+  ctx.save();
+  ctx.translate(stampX, stampY);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Електронний документ підписано КЕП АТ «НЕ-ОБАНК»', 20, y + 12);
-  doc.text('Серийний номер сертифіката: 4F82A9001234BCA9', 20, y + 17);
-  doc.text(`Хеш-код КЕП: SHA256:${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`, 20, y + 22);
-  doc.text('Перевірити чинність документу можна в застосунку НЕ-ОБАНК або НБУ.', 20, y + 27);
+  // Stamp circles
+  ctx.strokeStyle = '#7C3AED'; // Royal Violet
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(80, 80, 75, 0, Math.PI * 2);
+  ctx.stroke();
 
-  // Footer note
-  doc.setFontSize(7.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text('Квитанція сформована автоматично в процесі обробки транзакції системою Ne-OBank Core.', 105, 268, { align: 'center' });
-  doc.text('Служба підтримки НЕ-ОБАНК: 0 800 300 800 | support@neobank.ua', 105, 272, { align: 'center' });
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(80, 80, 60, 0, Math.PI * 2);
+  ctx.stroke();
 
-  doc.save(`NeOBank_Receipt_${tx.receiptNumber}.pdf`);
+  ctx.fillStyle = '#7C3AED';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('АТ «Ne•OBank App»', 80, 65);
+  ctx.font = '9px sans-serif';
+  ctx.fillText('ЛІЦЕНЗІЯ НБУ №302', 80, 80);
+  ctx.fillText('Е-ПІДПИС & ПЕЧАТКА', 80, 93);
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('★ ОПЛАЧЕНО ★', 80, 110);
+  ctx.restore();
+
+  // Digital Signature Info
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText('Кваліфікований електронний підпис та печатка (КЕП):', 75, y);
+
+  y += 22;
+  ctx.fillStyle = '#475569';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('Підписант: АТ «Ne•OBank App» (Електронний підпис авторизованого банку)', 75, y);
+
+  y += 20;
+  ctx.fillText(`Сертифікат КЕП: № 4F82A9001234BCA90098`, 75, y);
+
+  y += 20;
+  ctx.font = '12px monospace';
+  ctx.fillText(`Хеш SHA256: 8f9b2a1c0d3e${tx.receiptNumber.replace(/-/g,'').toLowerCase()}7f8e9a1b2c3d4e5f`, 75, y);
+
+  y += 20;
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Перевірка чинності документу: https://neobank.app/verify', 75, y);
+
+  // Footer Note
+  y += 65;
+  ctx.fillStyle = '#94A3B8';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Квитанція сформована автоматично в процесі обробки транзакції системою Ne•OBank App Core.', 397, y);
+  ctx.fillText('Служба підтримки Ne•OBank App: 0 800 300 800 | support@neobank.app', 397, y + 18);
+
+  // Convert canvas to image and export PDF via jsPDF
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF('portrait', 'mm', 'a4');
+  pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+  pdf.save(`Ne_OBank_App_Receipt_${tx.receiptNumber}.pdf`);
 }

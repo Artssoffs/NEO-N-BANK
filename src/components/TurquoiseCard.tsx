@@ -33,7 +33,7 @@ export function TurquoiseCard({
   const handleCopyIban = () => {
     navigator.clipboard.writeText(iban);
     setCopiedIban(true);
-    showToast('НЕ-ОБАНК', 'IBAN скопійовано в буфер обміну', 'success');
+    showToast('Ne•OBank App', 'IBAN скопійовано в буфер обміну', 'success');
     setTimeout(() => setCopiedIban(false), 2000);
   };
 
@@ -47,24 +47,24 @@ export function TurquoiseCard({
         className={cn(
           "relative rounded-3xl p-5 border transition-all duration-300 overflow-hidden shadow-2xl group",
           isFrozen 
-            ? "bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617] border-cyan-500/30 opacity-90"
-            : "bg-gradient-to-br from-[#082F49] via-[#0E7490] to-[#0A101D] border-cyan-400/40 shadow-cyan-500/10"
+            ? "bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617] border-violet-500/30 opacity-90"
+            : "bg-gradient-to-br from-[#1E1B4B] via-[#4F46E5] to-[#0B0A1A] border-violet-400/40 shadow-violet-500/10"
         )}
       >
         {/* Glow Effects */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-400/20 rounded-full filter blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-teal-500/20 rounded-full filter blur-2xl pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-400/20 rounded-full filter blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-36 h-36 bg-fuchsia-500/20 rounded-full filter blur-2xl pointer-events-none"></div>
 
         {/* Frozen Badge Overlay */}
         {isFrozen && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-20 flex flex-col items-center justify-center space-y-2">
-            <div className="p-3 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 animate-pulse">
+            <div className="p-3 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/30 animate-pulse">
               <Snowflake className="w-8 h-8" />
             </div>
-            <span className="text-xs font-bold text-cyan-200 tracking-wider uppercase">Картку заморожено</span>
+            <span className="text-xs font-bold text-violet-200 tracking-wider uppercase">Картку заморожено</span>
             <button 
               onClick={onToggleFreeze}
-              className="px-4 py-1.5 rounded-full bg-cyan-400 text-black text-xs font-bold hover:bg-cyan-300 transition"
+              className="px-4 py-1.5 rounded-full bg-violet-400 text-black text-xs font-bold hover:bg-violet-300 transition"
             >
               Розморозити
             </button>
@@ -73,19 +73,19 @@ export function TurquoiseCard({
 
         <div className="flex justify-between items-start relative z-10">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-teal-300 flex items-center justify-center font-black text-black text-sm shadow-md">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-400 to-fuchsia-300 flex items-center justify-center font-black text-white text-sm shadow-md">
               N
             </div>
             <div>
-              <span className="font-extrabold text-sm text-white tracking-tight">НЕ-ОБАНК</span>
-              <span className="text-[10px] text-cyan-200/80 block leading-none font-medium">Turquoise Platinum</span>
+              <span className="font-extrabold text-sm text-white tracking-tight">Ne•OBank App</span>
+              <span className="text-[10px] text-violet-200/80 block leading-none font-medium">Luxury Platinum</span>
             </div>
           </div>
           
           <div className="flex items-center space-x-1">
             <button 
               onClick={() => setShowDetails(!showDetails)}
-              className="p-1.5 rounded-xl bg-black/30 hover:bg-black/50 text-cyan-300 border border-cyan-400/20 transition-all text-xs flex items-center space-x-1 px-2.5"
+              className="p-1.5 rounded-xl bg-black/30 hover:bg-black/50 text-violet-300 border border-violet-400/20 transition-all text-xs flex items-center space-x-1 px-2.5"
             >
               {showDetails ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               <span>{showDetails ? 'Сховати' : 'Реквізити'}</span>
@@ -96,9 +96,9 @@ export function TurquoiseCard({
         {/* Chip & Balance */}
         <div className="my-4 relative z-10 flex justify-between items-end">
           <div>
-            <span className="text-[10px] text-cyan-100/70 block uppercase tracking-wider font-semibold">Баланс Картки</span>
+            <span className="text-[10px] text-violet-100/70 block uppercase tracking-wider font-semibold">Баланс Картки</span>
             <div className="text-2xl font-black text-white tracking-tight flex items-baseline">
-              {formattedBalance} <span className="text-sm font-bold text-cyan-300 ml-1">₴</span>
+              {formattedBalance} <span className="text-sm font-bold text-violet-300 ml-1">₴</span>
             </div>
           </div>
 
@@ -106,16 +106,16 @@ export function TurquoiseCard({
         </div>
 
         {/* Card Number & Holder */}
-        <div className="space-y-1 relative z-10 pt-2 border-t border-cyan-500/20">
-          <div className="flex justify-between items-center text-xs font-mono text-cyan-100 tracking-wider">
+        <div className="space-y-1 relative z-10 pt-2 border-t border-violet-500/20">
+          <div className="flex justify-between items-center text-xs font-mono text-violet-100 tracking-wider">
             <span>{showDetails ? cardNumber : `•••• •••• •••• ${cardNumber.slice(-4)}`}</span>
-            <span className="text-[11px] text-cyan-200">{showDetails ? expiryDate : '••/••'}</span>
+            <span className="text-[11px] text-violet-200">{showDetails ? expiryDate : '••/••'}</span>
           </div>
 
           <div className="flex justify-between items-center pt-1 text-[11px]">
-            <span className="font-medium text-cyan-200 uppercase tracking-widest">{cardHolder}</span>
+            <span className="font-medium text-violet-200 uppercase tracking-widest">{cardHolder}</span>
             {showDetails && (
-              <span className="font-mono text-xs bg-black/40 px-2 py-0.5 rounded text-cyan-300 border border-cyan-400/30">
+              <span className="font-mono text-xs bg-black/40 px-2 py-0.5 rounded text-violet-300 border border-violet-400/30">
                 CVV: {cvv}
               </span>
             )}
@@ -127,16 +127,16 @@ export function TurquoiseCard({
       <div className="grid grid-cols-2 gap-2">
         <button 
           onClick={handleCopyIban}
-          className="p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/15 flex items-center justify-between text-left transition"
+          className="p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/15 flex items-center justify-between text-left transition"
         >
           <div>
-            <span className="text-[10px] text-cyan-300/70 block uppercase font-medium">Реквізити IBAN</span>
+            <span className="text-[10px] text-violet-300/70 block uppercase font-medium">Реквізити IBAN</span>
             <span className="text-xs font-bold text-white truncate max-w-[120px] block font-mono">
               {iban.slice(0, 10)}...
             </span>
           </div>
-          <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
-            {copiedIban ? <Check className="w-4 h-4 text-teal-400" /> : <Copy className="w-4 h-4" />}
+          <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
+            {copiedIban ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
           </div>
         </button>
 
@@ -145,17 +145,17 @@ export function TurquoiseCard({
           className={cn(
             "p-3 rounded-2xl border flex items-center justify-between text-left transition",
             isFrozen 
-              ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-200" 
-              : "bg-[#121721] hover:bg-[#1A2130] border-cyan-500/15 text-white"
+              ? "bg-violet-500/20 border-violet-400/40 text-violet-200" 
+              : "bg-[#121721] hover:bg-[#1A2130] border-violet-500/15 text-white"
           )}
         >
           <div>
-            <span className="text-[10px] text-cyan-300/70 block uppercase font-medium">Заморозити картку</span>
+            <span className="text-[10px] text-violet-300/70 block uppercase font-medium">Заморозити картку</span>
             <span className="text-xs font-bold block">
               {isFrozen ? 'Заморожено' : 'Активна'}
             </span>
           </div>
-          <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+          <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
             <Snowflake className="w-4 h-4" />
           </div>
         </button>

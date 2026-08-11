@@ -88,7 +88,7 @@ export function GoogleTasksModal({
         due: dueDate || undefined
       });
 
-      showToast('Google Tasks', 'Завдання успішно додано в Google Tasks!', 'success');
+      showToast('Google Tasks', 'Завдання успешно додано в Google Tasks!', 'success');
       setTitle('');
       setNotes('');
       setDueDate('');
@@ -126,22 +126,22 @@ export function GoogleTasksModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#0C1322] border border-cyan-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-md bg-[#0C1322] border border-violet-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative max-h-[90vh] flex flex-col">
         
         {/* Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-cyan-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-violet-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
 
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-cyan-500/20 pb-3 relative z-10 shrink-0">
+        <div className="flex justify-between items-center border-b border-violet-500/20 pb-3 relative z-10 shrink-0">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center">
-              <CheckSquare className="w-5 h-5 text-cyan-300" />
+            <div className="w-9 h-9 rounded-2xl bg-violet-500/20 border border-violet-400/40 text-violet-300 flex items-center justify-center">
+              <CheckSquare className="w-5 h-5 text-violet-300" />
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-white tracking-wide uppercase">
                 Google Tasks Нагадування
               </h3>
-              <p className="text-[10px] text-cyan-300/70 font-medium">
+              <p className="text-[10px] text-violet-300/70 font-medium">
                 Синхронізація платіжних завдань
               </p>
             </div>
@@ -159,14 +159,14 @@ export function GoogleTasksModal({
           
           {/* Quick Presets */}
           <div className="space-y-1.5">
-            <span className="text-[10px] text-cyan-200/60 uppercase font-bold tracking-wider block">
+            <span className="text-[10px] text-violet-200/60 uppercase font-bold tracking-wider block">
               Швидкі фінансові шаблони:
             </span>
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
-                onClick={() => handleQuickPreset('Оплатити комунальні послуги 💡', 'Перевірити лічильники та сплатити платіжку через NEO-N•BANK')}
-                className="p-2 rounded-xl bg-[#121826] border border-cyan-500/20 hover:border-cyan-400/50 text-left text-[11px] text-cyan-200 hover:text-white transition"
+                onClick={() => handleQuickPreset('Оплатити комунальні послуги 💡', 'Перевірити лічильники та сплатити платіжку через Ne•OBank App')}
+                className="p-2 rounded-xl bg-[#121826] border border-violet-500/20 hover:border-violet-400/50 text-left text-[11px] text-violet-200 hover:text-white transition"
               >
                 💡 Оплата комуналки
               </button>
@@ -174,7 +174,7 @@ export function GoogleTasksModal({
               <button
                 type="button"
                 onClick={() => handleQuickPreset('Поповнити Банку / Накопичення 🏺', 'Перерахувати відсоток доходу в заначку')}
-                className="p-2 rounded-xl bg-[#121826] border border-cyan-500/20 hover:border-cyan-400/50 text-left text-[11px] text-cyan-200 hover:text-white transition"
+                className="p-2 rounded-xl bg-[#121826] border border-violet-500/20 hover:border-violet-400/50 text-left text-[11px] text-violet-200 hover:text-white transition"
               >
                 🏺 Заначка в Банку
               </button>
@@ -182,7 +182,7 @@ export function GoogleTasksModal({
               <button
                 type="button"
                 onClick={() => handleQuickPreset('Поповнити конверт «Продукти» ✉️', 'Розподілити готівку за конвертами')}
-                className="p-2 rounded-xl bg-[#121826] border border-cyan-500/20 hover:border-cyan-400/50 text-left text-[11px] text-cyan-200 hover:text-white transition"
+                className="p-2 rounded-xl bg-[#121826] border border-violet-500/20 hover:border-violet-400/50 text-left text-[11px] text-violet-200 hover:text-white transition"
               >
                 ✉️ Конверти готівки
               </button>
@@ -190,7 +190,7 @@ export function GoogleTasksModal({
               <button
                 type="button"
                 onClick={() => handleQuickPreset('Резервне копіювання виписки 📊', 'Створити щомісячний бекап у Google Sheets / Docs')}
-                className="p-2 rounded-xl bg-[#121826] border border-cyan-500/20 hover:border-cyan-400/50 text-left text-[11px] text-cyan-200 hover:text-white transition"
+                className="p-2 rounded-xl bg-[#121826] border border-violet-500/20 hover:border-violet-400/50 text-left text-[11px] text-violet-200 hover:text-white transition"
               >
                 📊 Бекап у Sheets
               </button>
@@ -198,9 +198,9 @@ export function GoogleTasksModal({
           </div>
 
           {/* Form Create Task */}
-          <form onSubmit={handleCreateTask} className="p-3.5 rounded-2xl bg-[#121826] border border-cyan-500/25 space-y-3">
+          <form onSubmit={handleCreateTask} className="p-3.5 rounded-2xl bg-[#121826] border border-violet-500/25 space-y-3">
             <h4 className="text-xs font-bold text-white flex items-center space-x-1.5">
-              <Plus className="w-3.5 h-3.5 text-cyan-400" />
+              <Plus className="w-3.5 h-3.5 text-violet-400" />
               <span>Створити нове завдання</span>
             </h4>
 
@@ -210,7 +210,7 @@ export function GoogleTasksModal({
                 placeholder="Назва завдання (напр. Сплатити кредит)"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 bg-[#090D16] border border-cyan-500/20 rounded-xl text-xs text-white placeholder-cyan-200/40 focus:outline-none focus:border-cyan-400/60"
+                className="w-full px-3 py-2 bg-[#090D16] border border-violet-500/20 rounded-xl text-xs text-white placeholder-violet-200/40 focus:outline-none focus:border-violet-400/60"
               />
 
               <input
@@ -218,16 +218,16 @@ export function GoogleTasksModal({
                 placeholder="Примітка або деталі (необов'язково)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 bg-[#090D16] border border-cyan-500/20 rounded-xl text-xs text-white placeholder-cyan-200/40 focus:outline-none focus:border-cyan-400/60"
+                className="w-full px-3 py-2 bg-[#090D16] border border-violet-500/20 rounded-xl text-xs text-white placeholder-violet-200/40 focus:outline-none focus:border-violet-400/60"
               />
 
               <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-cyan-400 shrink-0" />
+                <Calendar className="w-4 h-4 text-violet-400 shrink-0" />
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-[#090D16] border border-cyan-500/20 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-400/60"
+                  className="w-full px-3 py-1.5 bg-[#090D16] border border-violet-500/20 rounded-xl text-xs text-white focus:outline-none focus:border-violet-400/60"
                 />
               </div>
             </div>
@@ -235,7 +235,7 @@ export function GoogleTasksModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center space-x-2 transition disabled:opacity-50"
+              className="w-full py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 flex items-center justify-center space-x-2 transition disabled:opacity-50"
             >
               {isSubmitting ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -251,14 +251,14 @@ export function GoogleTasksModal({
           {/* Existing Google Tasks List */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] text-cyan-200/60 uppercase font-bold tracking-wider block">
+              <span className="text-[10px] text-violet-200/60 uppercase font-bold tracking-wider block">
                 Активні завдання з Google Tasks:
               </span>
               <button
                 type="button"
                 onClick={loadTasks}
                 disabled={isLoading}
-                className="text-[10px] text-cyan-300 hover:text-white flex items-center space-x-1"
+                className="text-[10px] text-violet-300 hover:text-white flex items-center space-x-1"
               >
                 <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
                 <span>Оновити</span>
@@ -280,22 +280,22 @@ export function GoogleTasksModal({
                 </button>
               </div>
             ) : isLoading ? (
-              <div className="p-4 text-center text-xs text-cyan-200/50 flex items-center justify-center space-x-2">
-                <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+              <div className="p-4 text-center text-xs text-violet-200/50 flex items-center justify-center space-x-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-violet-400" />
                 <span>Завантаження списку завдань...</span>
               </div>
             ) : tasks.length === 0 ? (
-              <div className="p-4 rounded-2xl bg-[#121826] border border-cyan-500/15 text-center text-xs text-cyan-200/50 space-y-1">
-                <ListTodo className="w-6 h-6 text-cyan-400/30 mx-auto" />
+              <div className="p-4 rounded-2xl bg-[#121826] border border-violet-500/15 text-center text-xs text-violet-200/50 space-y-1">
+                <ListTodo className="w-6 h-6 text-violet-400/30 mx-auto" />
                 <p>Активних фінансових завдань немає</p>
               </div>
             ) : (
               <div className="space-y-1.5">
                 {tasks.map(task => (
-                  <div key={task.id} className="p-2.5 rounded-xl bg-[#121826] border border-cyan-500/20 flex items-start justify-between space-x-2">
+                  <div key={task.id} className="p-2.5 rounded-xl bg-[#121826] border border-violet-500/20 flex items-start justify-between space-x-2">
                     <div className="space-y-0.5">
                       <p className="text-xs font-bold text-white">{task.title}</p>
-                      {task.notes && <p className="text-[11px] text-cyan-200/60 leading-tight">{task.notes}</p>}
+                      {task.notes && <p className="text-[11px] text-violet-200/60 leading-tight">{task.notes}</p>}
                       {task.due && (
                         <p className="text-[10px] text-amber-300/80 font-mono">
                           Термін: {new Date(task.due).toLocaleDateString('uk-UA')}
@@ -307,7 +307,7 @@ export function GoogleTasksModal({
                       type="button"
                       onClick={() => task.id && handleCompleteTask(task.id)}
                       disabled={completingTaskId === task.id}
-                      className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-emerald-500/20 border border-cyan-500/30 hover:border-emerald-400 text-cyan-300 hover:text-emerald-300 text-xs font-bold transition shrink-0"
+                      className="p-1.5 rounded-lg bg-violet-500/10 hover:bg-emerald-500/20 border border-violet-500/30 hover:border-emerald-400 text-violet-300 hover:text-emerald-300 text-xs font-bold transition shrink-0"
                       title="Позначити виконаним"
                     >
                       {completingTaskId === task.id ? (

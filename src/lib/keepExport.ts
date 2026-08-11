@@ -1,21 +1,15 @@
-import { getAccessToken } from './auth';
-
 export const exportTransactionsToKeep = async (transactions: any[]) => {
-  const token = await getAccessToken();
-  if (!token) {
-    throw new Error('Not authenticated with Google');
-  }
-
   // 1. Prepare text content
-  let text = 'Історія операцій (Готівка)\n\n';
+  let text = '📓 Історія операцій (Готівка) - NEO-N•BANK\n\n';
   
   transactions.forEach((tx) => {
     const sign = tx.type === 'expense' ? '-' : '+';
     const amount = `${sign}${(tx.amount / 100).toFixed(2)} ₴`;
     const date = new Date(tx.date).toLocaleString('uk-UA');
     text += `${date} | ${tx.category} | ${amount}\n`;
-    if (tx.note) {
-      text += `Нотатка: ${tx.note}\n`;
+    text += `Призначення: ${tx.title}\n`;
+    if (tx.description) {
+      text += `Опис: ${tx.description}\n`;
     }
     if (tx.location) {
       text += `Місце: ${tx.location}\n`;
@@ -23,27 +17,11 @@ export const exportTransactionsToKeep = async (transactions: any[]) => {
     text += '----------------------------------------\n';
   });
 
-  // 2. Create a new note
-  const createRes = await fetch('https://keep.googleapis.com/v1/notes', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      title: `Виписка Готівки (Sense Cash Mode) - ${new Date().toLocaleDateString()}`,
-      body: {
-        text: {
-          text: text
-        }
-      }
-    })
-  });
-
-  if (!createRes.ok) {
-    const errorText = await createRes.text();
-    throw new Error(`Failed to create note: ${errorText}`);
+  try {
+    await navigator.clipboard.writeText(text);
+    return { success: true, copied: true, text };
+  } catch (err) {
+    console.warn('Clipboard write failed:', err);
+    return { success: true, copied: false, text };
   }
-
-  return await createRes.json();
 };

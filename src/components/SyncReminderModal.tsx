@@ -38,23 +38,23 @@ export function SyncReminderModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#0C1322] border border-cyan-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative">
+      <div className="w-full max-w-md bg-[#0C1322] border border-violet-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative">
         
         {/* Glow effect */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-emerald-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-violet-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
 
         {/* Header */}
-        <div className="flex justify-between items-start border-b border-cyan-500/20 pb-3 relative z-10">
+        <div className="flex justify-between items-start border-b border-violet-500/20 pb-3 relative z-10">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500/30 to-cyan-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shrink-0">
-              <Table className="w-5 h-5 text-emerald-300 animate-pulse" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500/20 border border-violet-400/40 text-violet-300 flex items-center justify-center shrink-0">
+              <Table className="w-5 h-5 text-violet-300 animate-pulse" />
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-white tracking-wide uppercase">
                 Резервне Копіювання Даних
               </h3>
-              <p className="text-[10px] text-cyan-300/70 font-medium">
-                NEO-N•BANK Workspace Integration
+              <p className="text-[10px] text-violet-300/70 font-medium">
+                Ne•OBank App Workspace Integration
               </p>
             </div>
           </div>
@@ -83,15 +83,15 @@ export function SyncReminderModal({
             Ви давно не оновлювали резервну копію транзакцій. Збережіть ваші дані в <b>Google Sheets</b>, <b>Google Docs</b> або <b>Google Keep</b>, щоб уникнути втрати фінансової історії.
           </p>
 
-          <div className="pt-2 border-t border-amber-500/20 text-[10px] text-cyan-200/60 font-mono">
+          <div className="pt-2 border-t border-amber-500/20 text-[10px] text-violet-200/60 font-mono">
             <span>Остання резервна копія: </span>
-            <span className="text-cyan-300 font-bold">{formattedLastSync}</span>
+            <span className="text-violet-300 font-bold">{formattedLastSync}</span>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-2 relative z-10">
-          <span className="text-[10px] text-cyan-200/60 uppercase font-bold tracking-wider block px-1">
+          <span className="text-[10px] text-violet-200/60 uppercase font-bold tracking-wider block px-1">
             Оберіть сервіс Google для бекапу:
           </span>
 
@@ -99,16 +99,16 @@ export function SyncReminderModal({
             <button
               onClick={onExportSheets}
               disabled={isExporting}
-              className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-between transition active:scale-[0.98] disabled:opacity-50"
+              className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-500 hover:from-violet-500 hover:to-indigo-400 text-white font-black text-xs shadow-lg shadow-violet-500/20 flex items-center justify-between transition active:scale-[0.98] disabled:opacity-50"
             >
               <div className="flex items-center space-x-2.5">
-                <Table className="w-4 h-4 text-black" />
+                <Table className="w-4 h-4 text-white" />
                 <span>Експортувати у Google Sheets (Таблиці)</span>
               </div>
               {isExporting ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
               ) : (
-                <span className="text-[10px] font-mono bg-black/20 px-2 py-0.5 rounded text-black font-bold">Sheets</span>
+                <span className="text-[10px] font-mono bg-black/20 px-2 py-0.5 rounded text-white font-bold">Sheets</span>
               )}
             </button>
           )}
@@ -116,16 +116,16 @@ export function SyncReminderModal({
           <button
             onClick={onExportDocs}
             disabled={isExporting}
-            className="w-full p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/30 text-cyan-300 font-bold text-xs flex items-center justify-between transition active:scale-[0.98] disabled:opacity-50"
+            className="w-full p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/30 text-violet-300 font-bold text-xs flex items-center justify-between transition active:scale-[0.98] disabled:opacity-50"
           >
             <div className="flex items-center space-x-2.5">
-              <FileText className="w-4 h-4 text-cyan-400" />
+              <FileText className="w-4 h-4 text-violet-400" />
               <span>Експортувати виписку в Google Docs</span>
             </div>
             {isExporting ? (
-              <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+              <RefreshCw className="w-4 h-4 animate-spin text-violet-400" />
             ) : (
-              <span className="text-[10px] font-mono bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-300 font-bold">Docs</span>
+              <span className="text-[10px] font-mono bg-violet-500/20 px-2 py-0.5 rounded text-violet-300 font-bold">Docs</span>
             )}
           </button>
 
@@ -151,19 +151,19 @@ export function SyncReminderModal({
                 onClose();
                 onOpenTasks();
               }}
-              className="w-full p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/30 text-cyan-300 font-bold text-xs flex items-center justify-between transition active:scale-[0.98]"
+              className="w-full p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/30 text-violet-300 font-bold text-xs flex items-center justify-between transition active:scale-[0.98]"
             >
               <div className="flex items-center space-x-2.5">
-                <CheckSquare className="w-4 h-4 text-cyan-400" />
+                <CheckSquare className="w-4 h-4 text-violet-400" />
                 <span>Планувальник в Google Tasks</span>
               </div>
-              <span className="text-[10px] font-mono bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-300 font-bold">Tasks</span>
+              <span className="text-[10px] font-mono bg-violet-500/20 px-2 py-0.5 rounded text-violet-300 font-bold">Tasks</span>
             </button>
           )}
         </div>
 
         {/* Secondary options */}
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-cyan-500/15 relative z-10">
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-violet-500/15 relative z-10">
           <button
             onClick={onClose}
             className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition"
@@ -173,7 +173,7 @@ export function SyncReminderModal({
 
           <button
             onClick={onSnooze30Days}
-            className="py-2.5 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition"
+            className="py-2.5 px-3 rounded-xl bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-bold transition"
           >
             Сховати на 30 днів
           </button>

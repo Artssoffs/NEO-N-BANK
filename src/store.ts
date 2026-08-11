@@ -64,6 +64,8 @@ interface AppState {
     requireBiometrics?: boolean;
     cashModeEnabled: boolean;
     lastSyncDate?: string;
+    phone?: string;
+    email?: string;
   };
   transactions: Transaction[];
   securityLogs: SecurityLog[];
@@ -74,6 +76,8 @@ interface AppState {
   updateUser: (user: Partial<AppState['user']>) => void;
   updateLastSyncDate: (date?: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'receiptNumber' | 'date'>) => void;
+  editTransaction: (id: string, updates: Partial<Transaction>) => void;
+  deleteTransaction: (id: string) => void;
   addCashExpense: (data: { amount: number; category: string; title: string; description?: string; location?: string }) => void;
   addCashIncome: (data: { amount: number; category: string; title: string; description?: string }) => void;
   atmWithdrawal: (amount: number) => boolean;
@@ -110,6 +114,8 @@ const defaultUser = {
   requireBiometrics: true,
   cashModeEnabled: true,
   lastSyncDate: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // Initialized to 35 days ago to trigger 30-day reminder
+  phone: '+380 97 123 45 67',
+  email: 'oleksandr@neobank.app',
 };
 
 const defaultCashbackCategories: CashbackCategory[] = [
@@ -279,7 +285,7 @@ export const useStore = create<AppState>()(
         const newTx: Transaction = {
           ...tx,
           id: `tx_${Math.random().toString(36).substring(2, 9)}`,
-          receiptNumber: Math.random().toString(36).substring(2, 14).toUpperCase().match(/.{1,4}/g)?.join('-') || '1234-5678-SENSE',
+          receiptNumber: Math.random().toString(36).substring(2, 14).toUpperCase().match(/.{1,4}/g)?.join('-') || '1234-5678-NEO',
           date: new Date().toISOString(),
         };
         const newBalance = state.user.balance + (tx.type === 'income' ? tx.amount : -tx.amount);
@@ -288,6 +294,14 @@ export const useStore = create<AppState>()(
           user: { ...state.user, balance: newBalance },
         };
       }),
+
+      editTransaction: (id, updates) => set((state) => ({
+        transactions: state.transactions.map(tx => tx.id === id ? { ...tx, ...updates } : tx)
+      })),
+
+      deleteTransaction: (id) => set((state) => ({
+        transactions: state.transactions.filter(tx => tx.id !== id)
+      })),
 
       addCashExpense: ({ amount, category, title, description, location }) => set((state) => {
         const newTx: Transaction = {
