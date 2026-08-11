@@ -7,7 +7,7 @@ import {
   FileText, PiggyBank, Gift, UserCircle, Save, Fingerprint, ScanFace,
   Wallet, Eye, EyeOff, Plus, Minus, ShoppingBag, Fuel, Utensils, Home, HeartPulse, Smile,
   Vault, ArrowUpRight, ArrowDownLeft, Landmark, DollarSign, Receipt, Trash2, ShieldCheck, Lock,
-  RefreshCw, ChevronRight, Copy, Share2, Cloud, Table, Search
+  RefreshCw, ChevronRight, Copy, Share2, Cloud, Table, Search, CheckSquare
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { useStore, Transaction, CashEnvelope } from './store';
@@ -17,6 +17,7 @@ import { exportTransactionsToKeep } from './lib/keepExport';
 import { exportTransactionsToSheets } from './lib/sheetsExport';
 import { syncToFirestore, subscribeToFirestore, testConnection } from './lib/firestoreSync';
 import { generateOfficialPDFReceipt } from './lib/pdfReceipt';
+import { GoogleTasksModal } from './components/GoogleTasksModal';
 
 import { TurquoiseCard } from './components/TurquoiseCard';
 import { TransfersModal } from './components/TransfersModal';
@@ -70,6 +71,7 @@ export default function App() {
   const [isTransfersOpen, setIsTransfersOpen] = useState(false);
   const [isCashbackOpen, setIsCashbackOpen] = useState(false);
   const [isJarOpen, setIsJarOpen] = useState(false);
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
   
   const [isEnvelopeModalOpen, setIsEnvelopeModalOpen] = useState(false);
   const [selectedEnvelope, setSelectedEnvelope] = useState<CashEnvelope | null>(null);
@@ -1249,6 +1251,29 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Google Tasks Integration Card */}
+              <div className="p-4 rounded-3xl bg-[#121721] border border-cyan-500/20 space-y-3">
+                <div className="flex justify-between items-center border-b border-cyan-500/15 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <CheckSquare className="w-4 h-4 text-cyan-400" />
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Google Tasks Платіжне Планування</h4>
+                  </div>
+                  <span className="text-[10px] text-cyan-300 font-mono">Tasks API</span>
+                </div>
+
+                <p className="text-[11px] text-cyan-200/70">
+                  Плануйте фінансові завдання, нагадування про оплату комуналки чи поповнення конвертів у Google Tasks.
+                </p>
+
+                <button
+                  onClick={() => setIsTasksModalOpen(true)}
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center space-x-2 transition"
+                >
+                  <CheckSquare className="w-4 h-4 text-black" />
+                  <span>Відкрити Google Tasks Нагадування</span>
+                </button>
+              </div>
+
               {/* Push Notifications Simulator Card */}
               <div className="p-4 rounded-3xl bg-[#121721] border border-cyan-500/20 space-y-3">
                 <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
@@ -1685,9 +1710,19 @@ export default function App() {
         onExportSheets={handleExportSheets}
         onExportDocs={handleExportDocs}
         onExportKeep={handleExportKeep}
+        onOpenTasks={() => setIsTasksModalOpen(true)}
         lastSyncDate={user.lastSyncDate}
         isExporting={isExporting}
         onSnooze30Days={handleSnooze30Days}
+      />
+
+      {/* MODAL 11: GOOGLE TASKS MODAL */}
+      <GoogleTasksModal
+        isOpen={isTasksModalOpen}
+        onClose={() => setIsTasksModalOpen(false)}
+        showToast={showToast}
+        googleToken={googleToken}
+        setGoogleToken={setGoogleToken}
       />
 
       {/* START LOCK SCREEN / BIOMETRIC AUTH */}

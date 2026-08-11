@@ -16,6 +16,8 @@ provider.addScope('https://www.googleapis.com/auth/keep');
 provider.addScope('https://www.googleapis.com/auth/keep.readonly');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
+provider.addScope('https://www.googleapis.com/auth/tasks');
+provider.addScope('https://www.googleapis.com/auth/tasks.readonly');
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;

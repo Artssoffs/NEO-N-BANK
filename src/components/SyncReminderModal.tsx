@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cloud, FileText, X, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Table } from 'lucide-react';
+import { Cloud, FileText, X, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Table, CheckSquare } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { uk } from 'date-fns/locale';
 
@@ -9,6 +9,7 @@ interface SyncReminderModalProps {
   onExportSheets?: () => Promise<void>;
   onExportDocs: () => Promise<void>;
   onExportKeep: () => Promise<void>;
+  onOpenTasks?: () => void;
   lastSyncDate?: string;
   isExporting: boolean;
   onSnooze30Days: () => void;
@@ -20,6 +21,7 @@ export function SyncReminderModal({
   onExportSheets,
   onExportDocs,
   onExportKeep,
+  onOpenTasks,
   lastSyncDate,
   isExporting,
   onSnooze30Days,
@@ -142,6 +144,22 @@ export function SyncReminderModal({
               <span className="text-[10px] font-mono bg-amber-500/20 px-2 py-0.5 rounded text-amber-300 font-bold">Keep</span>
             )}
           </button>
+
+          {onOpenTasks && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenTasks();
+              }}
+              className="w-full p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/30 text-cyan-300 font-bold text-xs flex items-center justify-between transition active:scale-[0.98]"
+            >
+              <div className="flex items-center space-x-2.5">
+                <CheckSquare className="w-4 h-4 text-cyan-400" />
+                <span>Планувальник в Google Tasks</span>
+              </div>
+              <span className="text-[10px] font-mono bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-300 font-bold">Tasks</span>
+            </button>
+          )}
         </div>
 
         {/* Secondary options */}
