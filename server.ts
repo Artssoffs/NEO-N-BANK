@@ -49,6 +49,22 @@ async function startServer() {
     }
   }));
 
+  // Cloud SQL Database endpoints
+  app.post("/api/db/user/sync", async (req, res) => {
+    try {
+      const { uid, email, name, balance, cashBalance } = req.body;
+      if (!uid || !email) {
+        return res.status(400).json({ error: "Missing uid or email" });
+      }
+      const { getOrCreateUser } = await import("./src/db/users.ts");
+      const user = await getOrCreateUser(uid, email, name);
+      res.json({ status: "ok", user });
+    } catch (e: any) {
+      console.error("User sync error:", e);
+      res.status(500).json({ error: e.message || "Failed to sync user" });
+    }
+  });
+
   // SSE Endpoint for real-time notifications
   app.get("/api/notifications/stream", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");

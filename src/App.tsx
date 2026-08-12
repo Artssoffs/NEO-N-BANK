@@ -18,7 +18,9 @@ import { exportTransactionsToSheets } from './lib/sheetsExport';
 import { syncToFirestore, subscribeToFirestore, testConnection } from './lib/firestoreSync';
 import { generateOfficialPDFReceipt } from './lib/pdfReceipt';
 import { GoogleTasksModal } from './components/GoogleTasksModal';
+import { QuickBalanceEditModal } from './components/QuickBalanceEditModal';
 import logoImg from './assets/images/neobank_logo_violet_1786469205094.jpg';
+import { formatUAH } from './lib/utils';
 
 import { TurquoiseCard } from './components/TurquoiseCard';
 import { TransfersModal } from './components/TransfersModal';
@@ -66,6 +68,7 @@ export default function App() {
   
   const [activeTab, setActiveTab] = useState<'main' | 'envelopes' | 'transfers' | 'analytics' | 'settings'>('main');
   const [showBalance, setShowBalance] = useState(true);
+  const [secretModeEnabled, setSecretModeEnabled] = useState(true);
   
   // Modals & BottomSheets
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
@@ -75,6 +78,7 @@ export default function App() {
   const [isCashbackOpen, setIsCashbackOpen] = useState(false);
   const [isJarOpen, setIsJarOpen] = useState(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
+  const [isQuickBalanceEditOpen, setIsQuickBalanceEditOpen] = useState(false);
   
   const [isEnvelopeModalOpen, setIsEnvelopeModalOpen] = useState(false);
   const [selectedEnvelope, setSelectedEnvelope] = useState<CashEnvelope | null>(null);
@@ -678,15 +682,42 @@ export default function App() {
                     <span className="text-[10px] text-cyan-100/70 font-semibold uppercase tracking-wider block">Загальний Капітал</span>
                     <p className="text-[11px] text-cyan-200/60 mt-0.5">Картка + Готівка + Сейф</p>
                   </div>
-                  <button 
-                    onClick={() => setShowBalance(!showBalance)}
-                    className="p-2 rounded-xl bg-black/30 hover:bg-black/50 text-cyan-300 border border-cyan-400/20 transition-colors"
-                  >
-                    {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center space-x-1.5">
+                    <button 
+                      onClick={() => setSecretModeEnabled(!secretModeEnabled)}
+                      className={`p-2 rounded-xl border transition-colors flex items-center space-x-1 text-xs ${
+                        secretModeEnabled 
+                          ? "bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/30 shadow-[0_0_8px_rgba(244,63,94,0.1)]" 
+                          : "bg-white/5 hover:bg-white/10 text-white/50 border-white/10"
+                      }`}
+                      title={secretModeEnabled ? "Вимкнути приватний режим" : "Увімкнути приватний режим"}
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span className="font-bold text-[10px] tracking-tight">{secretModeEnabled ? "Приватний" : "Публічний"}</span>
+                    </button>
+                    <button 
+                      onClick={() => setIsQuickBalanceEditOpen(true)}
+                      className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/30 transition-colors flex items-center space-x-1 text-xs"
+                      title="Швидка зміна балансу (1-Click)"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span className="font-bold text-[11px]">Змінити</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowBalance(!showBalance)}
+                      className="p-2 rounded-xl bg-black/30 hover:bg-black/50 text-cyan-300 border border-cyan-400/20 transition-colors"
+                      title="Сховати / Показати баланс"
+                    >
+                      {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="my-2 relative z-10">
+                <div 
+                  onClick={() => setIsQuickBalanceEditOpen(true)}
+                  className="my-2 relative z-10 cursor-pointer hover:opacity-90 transition group/topbal"
+                  title="Натисніть для редагування балансу"
+                >
                   <div className="text-3xl font-black tracking-tight text-white flex items-baseline">
                     {showBalance ? displayTotalWealth : '••••••'} <span className="text-xl font-bold text-cyan-300 ml-1.5">₴</span>
                   </div>
@@ -766,8 +797,12 @@ export default function App() {
                 balance={user.balance}
                 creditLimit={user.creditLimit}
                 isFrozen={user.isCardFrozen}
+                showBalance={showBalance}
                 onToggleFreeze={toggleCardFreeze}
+                onToggleShowBalance={() => setShowBalance(!showBalance)}
+                onOpenEditBalance={() => setIsQuickBalanceEditOpen(true)}
                 showToast={showToast}
+                secretModeEnabled={secretModeEnabled}
               />
 
               {/* Cashback Banner Widget */}
@@ -1157,7 +1192,13 @@ export default function App() {
               <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
                 <div className="flex items-center justify-between border-b border-violet-500/15 pb-3">
                   <div className="flex items-center space-x-3">
-                    <img src={logoImg} alt="Profile Avatar" className="w-12 h-12 rounded-2xl object-cover border border-violet-400/40 shadow-md" />
+                    <img 
+                      src={logoImg} 
+                      alt="Profile Avatar" 
+                      onClick={() => setIsQuickBalanceEditOpen(true)}
+                      className="w-12 h-12 rounded-2xl object-cover border border-violet-400/40 shadow-md cursor-pointer hover:scale-105 transition" 
+                      title="Натисніть для швидкої зміни балансу"
+                    />
                     <div>
                       <h4 className="text-xs font-bold text-white">{user.name}</h4>
                       <p className="text-[10px] text-violet-300 font-mono mt-0.5">{user.iban}</p>
@@ -1265,6 +1306,44 @@ export default function App() {
                     </button>
                   </form>
                 )}
+              </div>
+
+              {/* 1-Click Global Balance Management Card */}
+              <div className="p-4 rounded-3xl bg-gradient-to-r from-[#1A103C] to-[#0D1427] border border-violet-500/30 space-y-3 shadow-xl">
+                <div className="flex justify-between items-center border-b border-violet-500/20 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 rounded-xl bg-violet-500/20 text-violet-300">
+                      <Save className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Глобальне Управління Балансом</h4>
+                      <p className="text-[10px] text-violet-300/70">Функція "В один клік" • UAH (₴) Only</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-2xl bg-black/40 border border-violet-500/20">
+                    <span className="text-[10px] text-violet-300/70 block">Баланс картки</span>
+                    <span className="text-xs font-bold font-mono text-white mt-0.5 block">
+                      {formatUAH(user.balance)}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-black/40 border border-violet-500/20">
+                    <span className="text-[10px] text-violet-300/70 block">Готівковий залишок</span>
+                    <span className="text-xs font-bold font-mono text-violet-300 mt-0.5 block">
+                      {formatUAH(user.cashBalance)}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsQuickBalanceEditOpen(true)}
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-extrabold text-xs shadow-lg shadow-violet-500/25 flex items-center justify-center space-x-2 transition"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Відкрити вікно зміни балансу (1-Click)</span>
+                </button>
               </div>
 
               {/* Google Auth & Firestore Card */}
@@ -1980,6 +2059,13 @@ export default function App() {
         showToast={showToast}
         googleToken={googleToken}
         setGoogleToken={setGoogleToken}
+      />
+
+      {/* MODAL 12: QUICK BALANCE EDIT MODAL (1-CLICK) */}
+      <QuickBalanceEditModal
+        isOpen={isQuickBalanceEditOpen}
+        onClose={() => setIsQuickBalanceEditOpen(false)}
+        showToast={showToast}
       />
 
       {/* START LOCK SCREEN / BIOMETRIC AUTH */}

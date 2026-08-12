@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Plus, X, Calendar, CheckCircle2, RefreshCw, AlertCircle, Sparkles, ListTodo } from 'lucide-react';
+import { CheckSquare, Plus, X, Calendar, CheckCircle2, RefreshCw, AlertCircle, ListTodo } from 'lucide-react';
 import { createGoogleTask, fetchGoogleTasks, completeGoogleTask, TaskItem } from '../lib/tasksIntegration';
 import { googleSignIn } from '../lib/auth';
 

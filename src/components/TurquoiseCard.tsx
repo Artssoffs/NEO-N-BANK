@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { CreditCard, Eye, EyeOff, ShieldAlert, Copy, Check, Snowflake } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { CreditCard, Eye, EyeOff, ShieldAlert, Copy, Check, Snowflake, Edit3, Lock } from 'lucide-react';
+import { cn, formatUAH } from '../lib/utils';
 
 interface TurquoiseCardProps {
   cardNumber: string;
@@ -11,8 +11,12 @@ interface TurquoiseCardProps {
   balance: number;
   creditLimit: number;
   isFrozen: boolean;
+  showBalance?: boolean;
   onToggleFreeze: () => void;
+  onToggleShowBalance?: () => void;
+  onOpenEditBalance?: () => void;
   showToast: (title: string, message: string, type?: 'success' | 'error' | 'info' | 'push') => void;
+  secretModeEnabled: boolean;
 }
 
 export function TurquoiseCard({
@@ -24,8 +28,12 @@ export function TurquoiseCard({
   balance,
   creditLimit,
   isFrozen,
+  showBalance = true,
   onToggleFreeze,
-  showToast
+  onToggleShowBalance,
+  onOpenEditBalance,
+  showToast,
+  secretModeEnabled
 }: TurquoiseCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [copiedIban, setCopiedIban] = useState(false);
@@ -37,34 +45,30 @@ export function TurquoiseCard({
     setTimeout(() => setCopiedIban(false), 2000);
   };
 
-  const formattedBalance = (balance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const formattedLimit = (creditLimit / 100).toLocaleString('uk-UA');
-
   return (
-    <div className="space-y-3">
-      {/* Interactive Card */}
+    <div className="space-y-3 font-sans">
+      {/* Interactive Card with Sharp, Strict, Tender-Cream Neo-brutalist styling */}
       <div 
         className={cn(
-          "relative rounded-3xl p-5 border transition-all duration-300 overflow-hidden shadow-2xl group",
+          "relative rounded-none p-5 border-2 border-black transition-all duration-200 overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
           isFrozen 
-            ? "bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617] border-violet-500/30 opacity-90"
-            : "bg-gradient-to-br from-[#1E1B4B] via-[#4F46E5] to-[#0B0A1A] border-violet-400/40 shadow-violet-500/10"
+            ? "bg-[#F1F5F9] text-slate-400 opacity-90"
+            : "bg-white text-black"
         )}
       >
-        {/* Glow Effects */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-400/20 rounded-full filter blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-fuchsia-500/20 rounded-full filter blur-2xl pointer-events-none"></div>
+        {/* Soft elegant gradient tint for tenderness */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-sky-100/50 rounded-none pointer-events-none transform rotate-45 translate-x-20 -translate-y-20"></div>
 
         {/* Frozen Badge Overlay */}
         {isFrozen && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-20 flex flex-col items-center justify-center space-y-2">
-            <div className="p-3 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/30 animate-pulse">
-              <Snowflake className="w-8 h-8" />
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-xs z-20 flex flex-col items-center justify-center space-y-2">
+            <div className="p-2.5 border-2 border-black bg-[#FEF2F2] text-red-600 font-bold text-xs uppercase tracking-wider">
+              <Snowflake className="w-5 h-5 inline-block mr-1.5 align-middle" />
+              Картку заморожено
             </div>
-            <span className="text-xs font-bold text-violet-200 tracking-wider uppercase">Картку заморожено</span>
             <button 
               onClick={onToggleFreeze}
-              className="px-4 py-1.5 rounded-full bg-violet-400 text-black text-xs font-bold hover:bg-violet-300 transition"
+              className="px-4 py-1.5 border-2 border-black bg-black text-white hover:bg-slate-800 text-xs font-bold transition rounded-none uppercase tracking-wider"
             >
               Розморозити
             </button>
@@ -73,49 +77,98 @@ export function TurquoiseCard({
 
         <div className="flex justify-between items-start relative z-10">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-400 to-fuchsia-300 flex items-center justify-center font-black text-white text-sm shadow-md">
+            <div className="w-7 h-7 bg-black flex items-center justify-center font-black text-white text-sm">
               N
             </div>
             <div>
-              <span className="font-extrabold text-sm text-white tracking-tight">Ne•OBank App</span>
-              <span className="text-[10px] text-violet-200/80 block leading-none font-medium">Luxury Platinum</span>
+              <span className="font-extrabold text-sm tracking-tight text-black block leading-none">Ne•OBank App</span>
+              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500">Luxury Premium Platinum</span>
             </div>
           </div>
           
-          <div className="flex items-center space-x-1">
-            <button 
-              onClick={() => setShowDetails(!showDetails)}
-              className="p-1.5 rounded-xl bg-black/30 hover:bg-black/50 text-violet-300 border border-violet-400/20 transition-all text-xs flex items-center space-x-1 px-2.5"
-            >
-              {showDetails ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              <span>{showDetails ? 'Сховати' : 'Реквізити'}</span>
-            </button>
-          </div>
+          {secretModeEnabled && (
+            <div className="flex items-center space-x-1.5">
+              {onToggleShowBalance && (
+                <button 
+                  onClick={onToggleShowBalance}
+                  title="Сховати / Показати баланс"
+                  className="p-1.5 bg-white border border-black hover:bg-slate-50 text-black transition-all flex items-center justify-center"
+                >
+                  {showBalance ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                </button>
+              )}
+              <button 
+                onClick={() => setShowDetails(!showDetails)}
+                className="p-1.5 bg-black text-white hover:bg-slate-800 transition-all text-xs flex items-center space-x-1 px-2.5 font-bold uppercase tracking-wider"
+              >
+                {showDetails ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                <span>{showDetails ? 'Сховати' : 'Деталі'}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Chip & Balance */}
-        <div className="my-4 relative z-10 flex justify-between items-end">
+        <div className="my-5 relative z-10 flex justify-between items-end">
           <div>
-            <span className="text-[10px] text-violet-100/70 block uppercase tracking-wider font-semibold">Баланс Картки</span>
-            <div className="text-2xl font-black text-white tracking-tight flex items-baseline">
-              {formattedBalance} <span className="text-sm font-bold text-violet-300 ml-1">₴</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] text-slate-600 block uppercase tracking-wider font-extrabold">Баланс Картки</span>
+              {secretModeEnabled && onOpenEditBalance && (
+                <button
+                  onClick={onOpenEditBalance}
+                  className="p-1 border border-black bg-[#F0FDF4] hover:bg-[#DCFCE7] text-green-800 transition text-[9px] flex items-center space-x-1 px-2 font-bold uppercase tracking-widest"
+                  title="Змінити баланс"
+                >
+                  <Edit3 className="w-2.5 h-2.5" />
+                  <span>Змінити</span>
+                </button>
+              )}
+            </div>
+            
+            <div 
+              onClick={secretModeEnabled ? onOpenEditBalance : undefined}
+              className={cn(
+                "text-2xl font-black tracking-tight text-black flex items-baseline select-all",
+                secretModeEnabled && "cursor-pointer hover:text-slate-700 transition"
+              )}
+            >
+              {secretModeEnabled ? (
+                showBalance ? formatUAH(balance) : "•••••••• ₴"
+              ) : (
+                <span className="text-slate-400 font-bold text-lg uppercase tracking-wider">ПРИВАТНИЙ РЕЖИМ</span>
+              )}
             </div>
           </div>
 
-          <div className="w-10 h-7 rounded-md bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 border border-amber-500/40 opacity-90 shadow-inner"></div>
+          <div className="w-9 h-6 border border-black bg-amber-100 flex items-center justify-center">
+            <div className="w-4 h-3 border-r border-black"></div>
+          </div>
         </div>
 
         {/* Card Number & Holder */}
-        <div className="space-y-1 relative z-10 pt-2 border-t border-violet-500/20">
-          <div className="flex justify-between items-center text-xs font-mono text-violet-100 tracking-wider">
-            <span>{showDetails ? cardNumber : `•••• •••• •••• ${cardNumber.slice(-4)}`}</span>
-            <span className="text-[11px] text-violet-200">{showDetails ? expiryDate : '••/••'}</span>
+        <div className="space-y-1.5 relative z-10 pt-3.5 border-t border-black">
+          <div className="flex justify-between items-center text-xs font-mono text-black font-semibold tracking-wider">
+            {secretModeEnabled ? (
+              <span>{showDetails ? cardNumber : `•••• •••• •••• ${cardNumber.slice(-4)}`}</span>
+            ) : (
+              <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest flex items-center">
+                <Lock className="w-3 h-3 mr-1" /> Дані приховано
+              </span>
+            )}
+            
+            {secretModeEnabled ? (
+              <span className="text-[11px] text-slate-700 font-bold">{showDetails ? expiryDate : '••/••'}</span>
+            ) : (
+              <span className="text-slate-400 text-[11px] font-bold">••/••</span>
+            )}
           </div>
 
-          <div className="flex justify-between items-center pt-1 text-[11px]">
-            <span className="font-medium text-violet-200 uppercase tracking-widest">{cardHolder}</span>
-            {showDetails && (
-              <span className="font-mono text-xs bg-black/40 px-2 py-0.5 rounded text-violet-300 border border-violet-400/30">
+          <div className="flex justify-between items-center pt-0.5 text-[10px]">
+            <span className="font-extrabold text-black uppercase tracking-widest">
+              {secretModeEnabled ? cardHolder : "КЛІЄНТ БАНКУ"}
+            </span>
+            {secretModeEnabled && showDetails && (
+              <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 border border-black text-black font-bold">
                 CVV: {cvv}
               </span>
             )}
@@ -124,42 +177,44 @@ export function TurquoiseCard({
       </div>
 
       {/* Card Controls Grid */}
-      <div className="grid grid-cols-2 gap-2">
-        <button 
-          onClick={handleCopyIban}
-          className="p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/15 flex items-center justify-between text-left transition"
-        >
-          <div>
-            <span className="text-[10px] text-violet-300/70 block uppercase font-medium">Реквізити IBAN</span>
-            <span className="text-xs font-bold text-white truncate max-w-[120px] block font-mono">
-              {iban.slice(0, 10)}...
-            </span>
-          </div>
-          <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
-            {copiedIban ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-          </div>
-        </button>
+      {secretModeEnabled && (
+        <div className="grid grid-cols-2 gap-2">
+          <button 
+            onClick={handleCopyIban}
+            className="p-2.5 rounded-none bg-white hover:bg-slate-50 border-2 border-black flex items-center justify-between text-left transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+          >
+            <div>
+              <span className="text-[9px] text-slate-500 block uppercase font-extrabold">Копіювати IBAN</span>
+              <span className="text-xs font-bold text-black truncate max-w-[125px] block font-mono">
+                {iban.slice(0, 10)}...
+              </span>
+            </div>
+            <div className="p-1 border border-black bg-slate-50 text-black">
+              {copiedIban ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            </div>
+          </button>
 
-        <button 
-          onClick={onToggleFreeze}
-          className={cn(
-            "p-3 rounded-2xl border flex items-center justify-between text-left transition",
-            isFrozen 
-              ? "bg-violet-500/20 border-violet-400/40 text-violet-200" 
-              : "bg-[#121721] hover:bg-[#1A2130] border-violet-500/15 text-white"
-          )}
-        >
-          <div>
-            <span className="text-[10px] text-violet-300/70 block uppercase font-medium">Заморозити картку</span>
-            <span className="text-xs font-bold block">
-              {isFrozen ? 'Заморожено' : 'Активна'}
-            </span>
-          </div>
-          <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
-            <Snowflake className="w-4 h-4" />
-          </div>
-        </button>
-      </div>
+          <button 
+            onClick={onToggleFreeze}
+            className={cn(
+              "p-2.5 rounded-none border-2 border-black flex items-center justify-between text-left transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+              isFrozen 
+                ? "bg-red-50 text-red-800" 
+                : "bg-white hover:bg-slate-50 text-black"
+            )}
+          >
+            <div>
+              <span className="text-[9px] text-slate-500 block uppercase font-extrabold">Статус Картки</span>
+              <span className="text-xs font-bold block uppercase tracking-wider">
+                {isFrozen ? 'Заморожено' : 'Активна'}
+              </span>
+            </div>
+            <div className="p-1 border border-black bg-slate-50 text-black">
+              <Snowflake className="w-3.5 h-3.5" />
+            </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

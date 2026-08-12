@@ -57,40 +57,61 @@ export async function syncToFirestore() {
     
     // Save user profile
     await setDoc(userRef, {
-      name: user.displayName || state.user.name,
-      balance: state.user.balance,
-      cashBalance: state.user.cashBalance,
-      requireBiometrics: state.user.requireBiometrics,
-      jar: state.jar,
+      name: user.displayName || state.user.name || 'User',
+      balance: state.user.balance ?? 0,
+      cashBalance: state.user.cashBalance ?? 0,
+      requireBiometrics: !!state.user.requireBiometrics,
+      jar: {
+        title: state.jar.title || 'Накопичувальна Банка',
+        currentAmount: state.jar.currentAmount ?? 0,
+        targetAmount: state.jar.targetAmount ?? 0,
+      },
       updatedAt: now,
-      createdAt: now, // Simplification
+      createdAt: now,
     }, { merge: true });
     
-    // In a real app we'd do incremental sync, but here we just batch update
-    // We only sync the top 20 to avoid quota/batch limits for this demo
+    // Batch update top items
     const batch = writeBatch(db);
     state.transactions.slice(0, 20).forEach(tx => {
       const txRef = doc(db, `users/${user.uid}/transactions`, tx.id);
-      batch.set(txRef, {
-        ...tx,
-        userId: user.uid
-      });
+      const txPayload: any = {
+        userId: user.uid,
+        type: tx.type,
+        amount: tx.amount,
+        title: tx.title,
+        category: tx.category,
+        date: tx.date,
+        status: tx.status,
+        receiptNumber: tx.receiptNumber,
+      };
+      if (tx.description) txPayload.description = tx.description;
+      if (tx.isCash !== undefined) txPayload.isCash = tx.isCash;
+      if (tx.paymentMethod) txPayload.paymentMethod = tx.paymentMethod;
+      if (tx.location) txPayload.location = tx.location;
+      
+      batch.set(txRef, txPayload, { merge: true });
     });
     
     state.cashEnvelopes.forEach(env => {
       const envRef = doc(db, `users/${user.uid}/cashEnvelopes`, env.id);
       batch.set(envRef, {
-        ...env,
-        userId: user.uid
-      });
+        userId: user.uid,
+        name: env.name,
+        amount: env.amount,
+        targetAmount: env.targetAmount,
+        category: env.category,
+        iconName: env.iconName,
+      }, { merge: true });
     });
 
     state.securityLogs.slice(0, 10).forEach(log => {
       const logRef = doc(db, `users/${user.uid}/securityLogs`, log.id);
       batch.set(logRef, {
-        ...log,
-        userId: user.uid
-      });
+        userId: user.uid,
+        timestamp: log.timestamp,
+        status: log.status === 'failure' ? 'failed' : log.status,
+        action: log.action || 'settings_change',
+      }, { merge: true });
     });
 
     await batch.commit();

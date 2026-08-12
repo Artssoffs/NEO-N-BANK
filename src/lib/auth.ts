@@ -1,10 +1,24 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  User, 
+  setPersistence, 
+  browserLocalPersistence, 
+  inMemoryPersistence 
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Configure fallback persistence proactively for sandboxed iframe environments
+setPersistence(auth, browserLocalPersistence).catch(() => {
+  setPersistence(auth, inMemoryPersistence).catch(() => {});
+});
 
 const dbId = (firebaseConfig as any).firestoreDatabaseId || (firebaseConfig as any).databaseId || 'ai-studio-monobankacquirin-ff2847c3-00ae-4682-a8f4-457fd01ca8e1';
 export const db = getFirestore(app, dbId);
@@ -42,6 +56,13 @@ export const initAuth = (
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
+
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+    } catch {
+      await setPersistence(auth, inMemoryPersistence);
+    }
+
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
@@ -59,6 +80,37 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
       console.log('Google Sign-in popup was closed by user.');
       return null;
     }
+
+    // Catch IndexedDB / "Database is closing/hidden" / iframe storage errors
+    if (
+      error?.message?.includes('Database is closing') ||
+      error?.message?.includes('hidden') ||
+      error?.message?.includes('indexedDB') ||
+      error?.message?.includes('IndexedDB') ||
+      error?.code === 'auth/internal-error' ||
+      error?.code === 'auth/web-storage-unsupported'
+    ) {
+      console.warn('IndexedDB database closing/hidden error detected. Retrying with inMemoryPersistence...');
+      try {
+        await setPersistence(auth, inMemoryPersistence);
+        const retryResult = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(retryResult);
+        if (credential?.accessToken) {
+          cachedAccessToken = credential.accessToken;
+          return { user: retryResult.user, accessToken: cachedAccessToken };
+        }
+      } catch (retryError: any) {
+        if (
+          retryError?.code === 'auth/popup-closed-by-user' ||
+          retryError?.code === 'auth/cancelled-popup-request' ||
+          retryError?.message?.includes('popup-closed-by-user')
+        ) {
+          return null;
+        }
+        console.error('Sign-in retry with inMemoryPersistence failed:', retryError);
+      }
+    }
+
     console.error('Sign in error:', error);
     throw error;
   } finally {
@@ -71,6 +123,10 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 export const logout = async () => {
-  await auth.signOut();
+  try {
+    await auth.signOut();
+  } catch (e) {
+    console.warn('Logout warning:', e);
+  }
   cachedAccessToken = null;
 };

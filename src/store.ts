@@ -74,6 +74,8 @@ interface AppState {
   cashbackCategories: CashbackCategory[];
   
   updateUser: (user: Partial<AppState['user']>) => void;
+  setCardBalanceInHryvnias: (hryvnias: number) => void;
+  setCashBalanceInHryvnias: (hryvnias: number) => void;
   updateLastSyncDate: (date?: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'receiptNumber' | 'date'>) => void;
   editTransaction: (id: string, updates: Partial<Transaction>) => void;
@@ -229,6 +231,12 @@ export const useStore = create<AppState>()(
       cashbackCategories: defaultCashbackCategories,
 
       updateUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),
+      setCardBalanceInHryvnias: (hryvnias) => set((state) => ({ 
+        user: { ...state.user, balance: Math.round(hryvnias * 100) } 
+      })),
+      setCashBalanceInHryvnias: (hryvnias) => set((state) => ({ 
+        user: { ...state.user, cashBalance: Math.round(hryvnias * 100) } 
+      })),
       updateLastSyncDate: (date) => set((state) => ({ user: { ...state.user, lastSyncDate: date || new Date().toISOString() } })),
 
       toggleCashbackCategory: (categoryId) => set((state) => {
