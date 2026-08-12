@@ -3,6 +3,8 @@ export interface ScannedPaymentData {
   targetNumber: string;
   amount?: string;
   comment?: string;
+  recipientName?: string;
+  taxId?: string;
   raw: string;
 }
 
@@ -34,11 +36,31 @@ export function parseScannedCode(decodedText: string): ScannedPaymentData {
       }
     }
 
+    // Extract recipient name
+    let recipientName = '';
+    const nameMatch = text.match(/(?:name|recipient|одержувач|назва|наименование)=([^|&]+)/i);
+    if (nameMatch) {
+      try {
+        recipientName = decodeURIComponent(nameMatch[1].trim());
+      } catch {
+        recipientName = nameMatch[1].trim();
+      }
+    }
+
+    // Extract recipient tax ID / EDRPOU / OKPO
+    let taxId = '';
+    const codeMatch = text.match(/(?:edrpou|okpo|код|іпн|taxid|code)=([^|&]+)/i);
+    if (codeMatch) {
+      taxId = codeMatch[1].trim();
+    }
+
     return {
       type: 'iban',
       targetNumber: iban,
       amount: amountStr || undefined,
       comment: comment || undefined,
+      recipientName: recipientName || undefined,
+      taxId: taxId || undefined,
       raw: text
     };
   }

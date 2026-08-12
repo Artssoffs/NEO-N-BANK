@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Smartphone, Landmark, Receipt, X, ArrowRight, CheckCircle2, Scan } from 'lucide-react';
+import { CreditCard, Smartphone, Landmark, Receipt, X, ArrowRight, Scan, HelpCircle } from 'lucide-react';
 import { useStore } from '../store';
 import { cn } from '../lib/utils';
 import { QRScannerModal } from './QRScannerModal';
@@ -20,7 +20,17 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
   const [targetNumber, setTargetNumber] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [comment, setComment] = useState('');
-  const [utilityCompany, setUtilityCompany] = useState('Київводоканал / ДТЕК');
+  const [utilityCompany, setUtilityCompany] = useState('ТОВ «Київські енергетичні послуги» (YASNO)');
+
+  // Extended IBAN states
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientCode, setRecipientCode] = useState('');
+
+  // Utility-specific dynamic fields
+  const [utilityAccount, setUtilityAccount] = useState('');
+  const [utilityFlat, setUtilityFlat] = useState('');
+  const [utilityMeter1, setUtilityMeter1] = useState('');
+  const [utilityMeter2, setUtilityMeter2] = useState('');
 
   if (!isOpen) return null;
 
@@ -33,37 +43,46 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
     if (scanned.comment) {
       setComment(scanned.comment);
     }
-    showToast('Ne•OBank App', 'Реквізити автоматично заповнено з QR-коду!', 'success');
+    showToast('NEO•N•BANK', 'Реквізити автоматично заповнено з QR-коду!', 'success');
   };
 
   const handleExecuteTransfer = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = Math.round(parseFloat(amountStr.replace(',', '.')) * 100);
     if (!parsedAmount || parsedAmount <= 0) {
-      showToast('Ne•OBank App', 'Введіть коректну суму', 'error');
+      showToast('NEO•N•BANK', 'Введіть коректну суму', 'error');
       return;
     }
 
     if (user.balance < parsedAmount) {
-      showToast('Ne•OBank App', 'Недостатньо коштів на картці Ne•OBank App', 'error');
+      showToast('NEO•N•BANK', 'Недостатньо коштів на вашій картці', 'error');
       return;
     }
 
     let title = '';
     let category = '';
+    let desc = comment;
 
     if (activeType === 'card') {
-      title = `Переказ на картку ${targetNumber.slice(-4) || '****'}`;
+      title = `Переказ на картку ${targetNumber.replace(/\s+/g, '').slice(-4) || '****'}`;
       category = 'Переказ P2P';
+      if (!desc) desc = 'Переказ на картку через додаток';
     } else if (activeType === 'mobile') {
       title = `Поповнення мобільного ${targetNumber}`;
       category = 'Мобільний зв\'язок';
+      if (!desc) desc = 'Миттєве поповнення рахунку';
     } else if (activeType === 'iban') {
-      title = `Переказ за IBAN ${targetNumber.slice(0, 8)}...`;
-      category = 'Оплата за реквізитами';
+      if (!recipientName || !recipientCode) {
+        showToast('NEO•N•BANK', 'Заповніть ПІБ та ІПН отримувача', 'error');
+        return;
+      }
+      title = `Переказ за IBAN отримувачу ${recipientName}`;
+      category = 'Платіж за реквізитами';
+      desc = `Отримувач: ${recipientName} (ІПН/ЄДРПОУ: ${recipientCode}). IBAN: ${targetNumber}. Призначення: ${comment || 'Оплата за послуги / товари'}`;
     } else {
-      title = `Оплата послуг: ${utilityCompany}`;
+      title = `${utilityCompany}`;
       category = 'Комунальні платежі';
+      if (!desc) desc = `Сплата за комунальні послуги: ${utilityCompany}`;
     }
 
     addTransaction({
@@ -71,58 +90,68 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
       amount: parsedAmount,
       title,
       category,
-      description: comment || 'Платіж проведено через Ne•OBank App',
+      description: desc,
       status: 'success',
       isCash: false,
       paymentMethod: 'sense_card'
     });
 
-    showToast('Ne•OBank App', `Успішно сплачено ${(parsedAmount / 100).toFixed(2)} ₴`, 'success');
+    showToast('NEO•N•BANK', `Успішно сплачено ${(parsedAmount / 100).toFixed(2)} ₴`, 'success');
+    
+    // reset
     setTargetNumber('');
     setAmountStr('');
     setComment('');
+    setRecipientName('');
+    setRecipientCode('');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+      <div className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4">
         
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center font-bold">
+        <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20 font-bold">
               💸
             </div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Перекази & Платежі</h3>
+            <div>
+              <h3 className="text-xs font-black text-white uppercase tracking-wider block">Платежі та перекази</h3>
+              <span className="text-[9px] text-zinc-500 block">Швидкі розрахунки в межах України</span>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <button
               type="button"
               onClick={() => setIsScannerOpen(true)}
-              className="px-2.5 py-1.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-violet-300 hover:bg-violet-500/30 text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+              className="px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-cyan-400 hover:bg-zinc-800/80 text-[10px] font-black transition flex items-center space-x-1.5 tracking-wider uppercase"
               title="Сканувати QR або штрихкод платіжки"
             >
-              <Scan className="w-3.5 h-3.5 text-violet-300 animate-pulse" />
-              <span>QR / Штрихкод</span>
+              <Scan className="w-3.5 h-3.5" />
+              <span>QR Сканер</span>
             </button>
             <button 
               onClick={onClose}
-              className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70"
+              className="p-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Transfer Category Selector */}
-        <div className="grid grid-cols-4 gap-1.5 p-1 bg-black/40 rounded-2xl border border-violet-500/20">
+        {/* Categories navigation with smooth interactive active state */}
+        <div className="grid grid-cols-4 gap-1 p-1 bg-zinc-900/60 rounded-xl border border-zinc-850">
           <button
             type="button"
-            onClick={() => setActiveType('card')}
+            onClick={() => {
+              setActiveType('card');
+              setTargetNumber('');
+            }}
             className={cn(
-              "py-2 rounded-xl text-[10px] font-bold transition flex flex-col items-center justify-center space-y-1",
-              activeType === 'card' ? "bg-violet-500 text-white shadow-md" : "text-violet-200/70 hover:text-white"
+              "py-2.5 rounded-lg text-[10px] font-extrabold transition-all uppercase tracking-wider flex flex-col items-center justify-center space-y-1.5 duration-200",
+              activeType === 'card' ? "bg-cyan-400 text-zinc-950 font-black shadow-md" : "text-zinc-400 hover:text-white"
             )}
           >
             <CreditCard className="w-4 h-4" />
@@ -131,10 +160,13 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
 
           <button
             type="button"
-            onClick={() => setActiveType('mobile')}
+            onClick={() => {
+              setActiveType('mobile');
+              setTargetNumber('');
+            }}
             className={cn(
-              "py-2 rounded-xl text-[10px] font-bold transition flex flex-col items-center justify-center space-y-1",
-              activeType === 'mobile' ? "bg-violet-500 text-white shadow-md" : "text-violet-200/70 hover:text-white"
+              "py-2.5 rounded-lg text-[10px] font-extrabold transition-all uppercase tracking-wider flex flex-col items-center justify-center space-y-1.5 duration-200",
+              activeType === 'mobile' ? "bg-cyan-400 text-zinc-950 font-black shadow-md" : "text-zinc-400 hover:text-white"
             )}
           >
             <Smartphone className="w-4 h-4" />
@@ -143,22 +175,28 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
 
           <button
             type="button"
-            onClick={() => setActiveType('iban')}
+            onClick={() => {
+              setActiveType('iban');
+              setTargetNumber('');
+            }}
             className={cn(
-              "py-2 rounded-xl text-[10px] font-bold transition flex flex-col items-center justify-center space-y-1",
-              activeType === 'iban' ? "bg-violet-500 text-white shadow-md" : "text-violet-200/70 hover:text-white"
+              "py-2.5 rounded-lg text-[10px] font-extrabold transition-all uppercase tracking-wider flex flex-col items-center justify-center space-y-1.5 duration-200",
+              activeType === 'iban' ? "bg-cyan-400 text-zinc-950 font-black shadow-md" : "text-zinc-400 hover:text-white"
             )}
           >
             <Landmark className="w-4 h-4" />
-            <span>IBAN</span>
+            <span>За IBAN</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveType('utility')}
+            onClick={() => {
+              setActiveType('utility');
+              setTargetNumber('');
+            }}
             className={cn(
-              "py-2 rounded-xl text-[10px] font-bold transition flex flex-col items-center justify-center space-y-1",
-              activeType === 'utility' ? "bg-violet-500 text-white shadow-md" : "text-violet-200/70 hover:text-white"
+              "py-2.5 rounded-lg text-[10px] font-extrabold transition-all uppercase tracking-wider flex flex-col items-center justify-center space-y-1.5 duration-200",
+              activeType === 'utility' ? "bg-cyan-400 text-zinc-950 font-black shadow-md" : "text-zinc-400 hover:text-white"
             )}
           >
             <Receipt className="w-4 h-4" />
@@ -166,29 +204,21 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
           </button>
         </div>
 
-        {/* Form Inputs */}
-        <form onSubmit={handleExecuteTransfer} className="space-y-3 pt-1">
+        {/* Dynamic Interactive Forms */}
+        <form onSubmit={handleExecuteTransfer} className="space-y-3.5 pt-1">
           {activeType === 'card' && (
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="text-[11px] text-violet-200/80 font-medium">Номер картки отримувача</label>
-                <button
-                  type="button"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="text-[10px] text-violet-300 hover:text-violet-200 flex items-center space-x-1 font-bold"
-                >
-                  <Scan className="w-3 h-3 text-violet-400" />
-                  <span>Зчитати з QR</span>
-                </button>
+                <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Номер картки отримувача</label>
               </div>
               <input 
                 type="text"
-                placeholder="4441 •••• •••• 1234"
+                placeholder="4441 1144 8888 1234"
                 maxLength={19}
                 value={targetNumber}
                 onChange={(e) => setTargetNumber(e.target.value)}
                 required
-                className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-white placeholder-white/30 text-sm font-mono focus:outline-none focus:border-violet-400"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm font-mono focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20"
               />
             </div>
           )}
@@ -196,15 +226,7 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
           {activeType === 'mobile' && (
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="text-[11px] text-violet-200/80 font-medium">Номер телефону (+380)</label>
-                <button
-                  type="button"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="text-[10px] text-violet-300 hover:text-violet-200 flex items-center space-x-1 font-bold"
-                >
-                  <Scan className="w-3 h-3 text-violet-400" />
-                  <span>Сканувати</span>
-                </button>
+                <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Номер мобільного (+380)</label>
               </div>
               <input 
                 type="tel"
@@ -212,78 +234,107 @@ export function TransfersModal({ isOpen, onClose, showToast }: TransfersModalPro
                 value={targetNumber}
                 onChange={(e) => setTargetNumber(e.target.value)}
                 required
-                className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-white placeholder-white/30 text-sm font-mono focus:outline-none focus:border-violet-400"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm font-mono focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20"
               />
             </div>
           )}
 
           {activeType === 'iban' && (
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-[11px] text-violet-200/80 font-medium">Номер рахунку IBAN</label>
-                <button
-                  type="button"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="text-[10px] text-violet-300 hover:text-violet-200 flex items-center space-x-1 font-bold"
-                >
-                  <Scan className="w-3 h-3 text-violet-400" />
-                  <span>Сканувати QR платіжки</span>
-                </button>
+            <div className="space-y-3 animate-fade-in">
+              {/* Recipient Full Name */}
+              <div>
+                <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold block mb-1">ПІБ отримувача (Повна назва)</label>
+                <input 
+                  type="text"
+                  placeholder="ТОВ СИСТЕМНІ РІШЕННЯ або Петренко Петро Петрович"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  required
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-xs font-semibold focus:outline-none focus:border-cyan-400"
+                />
               </div>
-              <input 
-                type="text"
-                placeholder="UA89 3000 0000 ..."
-                value={targetNumber}
-                onChange={(e) => setTargetNumber(e.target.value)}
-                required
-                className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-white placeholder-white/30 text-sm font-mono uppercase focus:outline-none focus:border-violet-400"
-              />
+
+              {/* Recipient IPN / USREOU */}
+              <div>
+                <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold block mb-1">ІПН отримувача / Код ЄДРПОУ (через /)</label>
+                <input 
+                  type="text"
+                  placeholder="3574503010 / 12345678"
+                  value={recipientCode}
+                  onChange={(e) => setRecipientCode(e.target.value)}
+                  required
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-xs font-semibold focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              {/* Full IBAN */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Рахунок отримувача (IBAN)</label>
+                </div>
+                <input 
+                  type="text"
+                  placeholder="UA93 3052 9900 0002 6001 ..."
+                  value={targetNumber}
+                  onChange={(e) => setTargetNumber(e.target.value)}
+                  required
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-xs font-mono uppercase focus:outline-none focus:border-cyan-400"
+                />
+              </div>
             </div>
           )}
 
           {activeType === 'utility' && (
             <div>
-              <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Організація / Послуга</label>
+              <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold block mb-1">Постачальник послуг (м. Київ)</label>
               <select 
                 value={utilityCompany}
                 onChange={(e) => setUtilityCompany(e.target.value)}
-                className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-violet-400"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-xs font-bold focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
-                <option value="Київводоканал / Водопостачання">Київводоканал / Водопостачання</option>
-                <option value="ДТЕК Київські електромережі">ДТЕК Київські електромережі</option>
-                <option value="Нафтогаз України">Нафтогаз України</option>
-                <option value="Інтернет Ланет / Воля / Укртелеком">Інтернет & ТБ (Укртелеком / Volia)</option>
+                <option value="ДТЕК Київські електромережі (Електропостачання)">⚡ ДТЕК Київські електромережі (Електропостачання)</option>
+                <option value="ПрАТ АК Київводоканал (Водопостачання)">💧 ПрАТ АК Київводоканал (Водопостачання & Водовідведення)</option>
+                <option value="ТОВ ГК Нафтогаз України (Природний газ)">🔥 ТОВ ГК Нафтогаз України (Природний газ)</option>
+                <option value="ТОВ Київські енергетичні послуги YASNO (Електроенергія)">💡 ТОВ Київські енергетичні послуги YASNO</option>
+                <option value="КП Київтеплоенерго (Опалення & Гаряча вода)">🌡️ КП Київтеплоенерго (Опалення & Гаряча вода)</option>
+                <option value="КП ГІОЦ Київ (Усі комунальні послуги за адресою)">🏢 КП ГІОЦ Київ (Єдина комунальна квитанція)</option>
+                <option value="Інтернет & ТБ (Ланет / Воля-Кабель / Тріолан / Київстар)">🌐 Інтернет & ТБ (Ланет / Воля / Київстар / Тріолан)</option>
               </select>
             </div>
           )}
 
+          {/* Amount input block */}
           <div>
-            <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Сума платежу (₴)</label>
-            <input 
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={amountStr}
-              onChange={(e) => setAmountStr(e.target.value)}
-              required
-              className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-lg placeholder-white/20 focus:outline-none focus:border-violet-400"
-            />
+            <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold block mb-1">Сума платежу (₴)</label>
+            <div className="relative flex items-center">
+              <input 
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={amountStr}
+                onChange={(e) => setAmountStr(e.target.value)}
+                required
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-cyan-400 font-extrabold text-lg placeholder-zinc-700 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20"
+              />
+              <span className="absolute right-4 font-black text-zinc-500 text-sm">UAH</span>
+            </div>
           </div>
 
+          {/* Comment / Purpose of payment */}
           <div>
-            <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Коментар до платежу (необов'язково)</label>
+            <label className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold block mb-1">Призначення платежу / Коментар</label>
             <input 
               type="text"
-              placeholder="Наприклад: Подарунок або Поповнення"
+              placeholder={activeType === 'iban' ? "Оплата згідно договору або Надання фіндопомоги" : "Наприклад: Комуналка за липень, Подарунок тощо"}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2 text-white placeholder-white/30 text-xs focus:outline-none focus:border-violet-400"
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-xs focus:outline-none focus:border-cyan-400"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full mt-2 py-3 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-400 hover:from-violet-400 hover:to-fuchsia-300 text-white font-extrabold text-sm shadow-lg shadow-violet-500/25 flex items-center justify-center space-x-2 transition active:scale-95"
+            className="w-full mt-3 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-extrabold text-xs uppercase tracking-wider hover:from-cyan-400 hover:to-indigo-500 transition-all shadow-lg shadow-cyan-950 flex items-center justify-center space-x-2 active:scale-95"
           >
             <span>Підтвердити та Сплатити</span>
             <ArrowRight className="w-4 h-4" />

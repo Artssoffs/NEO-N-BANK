@@ -66,6 +66,7 @@ interface AppState {
     lastSyncDate?: string;
     phone?: string;
     email?: string;
+    avatarUrl?: string;
   };
   transactions: Transaction[];
   securityLogs: SecurityLog[];
@@ -102,22 +103,22 @@ interface AppState {
 }
 
 const defaultUser = {
-  name: 'Олександр Сергійович',
-  iban: 'UA89300001000002600123456789',
-  cardNumber: '5375 4141 8888 9012',
-  cardHolder: 'OLEKSANDR SERHIIOVYCH',
-  cvv: '842',
-  expiryDate: '08/29',
+  name: 'Соколов Артем Сергійович',
+  iban: 'UA93805299357450301000000123',
+  cardNumber: '5375 4141 3574 5030',
+  cardHolder: 'ARTEM SOKOLOV',
+  cvv: '911',
+  expiryDate: '12/30',
   balance: 3450000, // 34,500.00 UAH (Ne-OBank Card)
-  cashBalance: 1285000, // 12,850.00 UAH (Physical Cash Wallet)
+  cashBalance: 0, // cash balance is disabled/removed
   cashbackBalance: 24500, // 245.00 UAH
-  creditLimit: 5000000, // 50,000 UAH
+  creditLimit: 0, // credit limit is set to 0 by default
   isCardFrozen: false,
   requireBiometrics: true,
-  cashModeEnabled: true,
-  lastSyncDate: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // Initialized to 35 days ago to trigger 30-day reminder
-  phone: '+380 97 123 45 67',
-  email: 'oleksandr@neobank.app',
+  cashModeEnabled: false,
+  lastSyncDate: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+  phone: '+380 50 357 45 03',
+  email: 'artem.sokolov@neobank.app',
 };
 
 const defaultCashbackCategories: CashbackCategory[] = [
@@ -169,28 +170,28 @@ const defaultTransactions: Transaction[] = [
     id: 'tx-101',
     type: 'expense',
     amount: 42000, // 420 UAH
-    title: 'Супермаркет Сильпо',
+    title: 'Супермаркет Сільпо',
     category: 'Продукти & Супермаркети',
-    description: 'Оплата готівкою на касі',
+    description: 'Оплата карткою на касі',
     date: new Date().toISOString(),
     status: 'success',
-    receiptNumber: 'CSH-8842-SENSE',
-    isCash: true,
-    paymentMethod: 'cash',
+    receiptNumber: 'NEO-8842-8052',
+    isCash: false,
+    paymentMethod: 'sense_card',
     location: 'м. Київ, вул. Хрещатик 12'
   },
   {
     id: 'tx-102',
     type: 'expense',
-    amount: 200000, // 2,000 UAH
-    title: 'Зняття готівки в банкоматі',
-    category: 'Зняття з картки',
-    description: 'ATM Sense Bank #4021',
+    amount: 120000, // 1,200 UAH
+    title: 'ДТЕК Київські електромережі',
+    category: 'Комунальні платежі',
+    description: 'Оплата комунальних послуг за реквізитами',
     date: new Date(Date.now() - 3600000 * 5).toISOString(),
     status: 'success',
-    receiptNumber: 'ATM-9012-SENSE',
+    receiptNumber: 'NEO-9012-YASNO',
     isCash: false,
-    paymentMethod: 'atm'
+    paymentMethod: 'sense_card'
   },
   {
     id: 'tx-103',
@@ -198,25 +199,25 @@ const defaultTransactions: Transaction[] = [
     amount: 18000, // 180 UAH
     title: 'Арома Кава',
     category: 'Кафе & Ресторани',
-    description: 'Кава та круасан (готівка)',
+    description: 'Оплата карткою (кава та круасан)',
     date: new Date(Date.now() - 86400000).toISOString(),
     status: 'success',
-    receiptNumber: 'CSH-1123-SENSE',
-    isCash: true,
-    paymentMethod: 'cash'
+    receiptNumber: 'NEO-1123-AROMA',
+    isCash: false,
+    paymentMethod: 'sense_card'
   },
   {
     id: 'tx-104',
     type: 'income',
-    amount: 500000, // 5,000 UAH
-    title: 'Повернення боргу',
-    category: 'Прибуток готівкою',
-    description: 'Готівка від Андрія',
+    amount: 1500000, // 15,000 UAH
+    title: 'Зарахування заробітної плати',
+    category: 'Зарахування',
+    description: 'Заробітна плата за липень',
     date: new Date(Date.now() - 86400000 * 2).toISOString(),
     status: 'success',
-    receiptNumber: 'CSH-0092-SENSE',
-    isCash: true,
-    paymentMethod: 'cash'
+    receiptNumber: 'NEO-0092-SALARY',
+    isCash: false,
+    paymentMethod: 'sense_card'
   }
 ];
 

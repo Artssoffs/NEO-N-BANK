@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, X, Upload, Flashlight, AlertCircle, CheckCircle2, Scan } from 'lucide-react';
+import { X, Upload, Flashlight, AlertCircle, CheckCircle2, Scan } from 'lucide-react';
 import { parseScannedCode, ScannedPaymentData } from '../lib/qrParser';
 
 interface QRScannerModalProps {
@@ -28,7 +28,6 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
       return;
     }
 
-    // Initialize scanner after DOM renders element
     const timer = setTimeout(() => {
       startScanner();
     }, 300);
@@ -68,15 +67,15 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
       await html5QrcodeRef.current.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
-          qrbox: { width: 230, height: 230 },
+          fps: 15,
+          qrbox: { width: 220, height: 220 },
           aspectRatio: 1.0,
         },
         (decodedText) => {
           handleDecoded(decodedText);
         },
         () => {
-          // Ignore transient frame scan errors
+          // Ignore transient frame errors
         }
       );
 
@@ -84,7 +83,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
     } catch (err: any) {
       console.warn('Camera error:', err);
       setCameraError(
-        err?.message || 'Не вдалося отримати доступ до камери. Скористайтеся завантаженням фото QR-коду або тестом.'
+        'Не вдалося автоматично відкрити камеру. Дозвольте доступ у налаштуваннях або завантажте знімок платіжки з галереї.'
       );
       setIsScanning(false);
     }
@@ -94,7 +93,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
     stopScanner();
     const parsed = parseScannedCode(decodedText);
     setScannedResult(parsed);
-    showToast('Ne•OBank App Scanner', 'QR/Штрихкод розпізнано!', 'success');
+    showToast('NEO•N•BANK', 'QR-код платіжки розпізнано успішно!', 'success');
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +108,7 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
       handleDecoded(decodedText);
     } catch (err) {
       console.error('File scan error:', err);
-      showToast('Сканер', 'На зображенні не знайдено QR або штрихкод', 'error');
+      showToast('НЕО•Н•БАНК', 'На завантаженому фото не знайдено QR-код або штрихкод', 'error');
     }
   };
 
@@ -125,11 +124,11 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
           });
           setTorchOn(!torchOn);
         } else {
-          showToast('Сканер', 'Спалах не підтримується пристроєм', 'info');
+          showToast('НЕО•Н•БАНК', 'Ліхтарик не підтримується цим пристроєм', 'info');
         }
       } catch (e) {
         console.warn(e);
-        showToast('Сканер', 'Не вдалося переключити спалах', 'info');
+        showToast('НЕО•Н•БАНК', 'Помилка під час керування ліхтариком', 'info');
       }
     }
   };
@@ -141,133 +140,144 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
     }
   };
 
-  // Demo / Test IBAN QR Generator trigger for instant testing
   const handleTestDemoScan = () => {
-    const demoIban = 'UA893000010000026001234567890';
-    const demoQrString = `ST00012|Name=КП Київводоканал|IBAN=${demoIban}|Sum=250.50|Purpose=Оплата за водопостачання о/р 998877`;
+    const demoIban = 'UA93805299357450301000000123';
+    const demoQrString = `ST00012|Name=КП Київводоканал|IBAN=${demoIban}|Sum=450.00|Purpose=Оплата за комунальні послуги за липень|edrpou=26012345`;
     handleDecoded(demoQrString);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-[#0B1220] border border-violet-500/40 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative">
+    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in">
+      <div className="w-full max-w-sm bg-zinc-950 border border-zinc-900 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 relative">
         
-        {/* Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-violet-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
-
-        {/* Header */}
-        <div className="flex justify-between items-center border-b border-violet-500/20 pb-3 relative z-10">
-          <div className="flex items-center space-x-2">
-            <div className="w-9 h-9 rounded-2xl bg-violet-500/20 border border-violet-400/40 text-violet-300 flex items-center justify-center">
-              <Scan className="w-5 h-5 animate-pulse text-violet-400" />
+        {/* Top Header */}
+        <div className="flex justify-between items-center border-b border-zinc-900 pb-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-cyan-400/10 text-cyan-400 flex items-center justify-center border border-cyan-400/20 font-bold">
+              <Scan className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
-                Сканер QR / Штрихкоду
-              </h3>
-              <p className="text-[10px] text-violet-300/70">
-                Автозаповнення реквізитів платежу
-              </p>
+              <h3 className="text-xs font-black text-white uppercase tracking-wider block">Зчитування платіжки</h3>
+              <span className="text-[9px] text-zinc-500 block">Камера миттєво зчитає всі реквізити</span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition"
+            className="p-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 text-zinc-400 transition"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Scanner View / Result */}
-        <div className="relative z-10 space-y-3">
+        {/* Content Box */}
+        <div className="space-y-4">
           {scannedResult ? (
-            <div className="p-4 rounded-2xl bg-violet-950/40 border border-violet-500/40 space-y-3 animate-in zoom-in-95 duration-200">
-              <div className="flex items-center space-x-2 text-violet-300 font-bold text-xs">
+            <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3.5 animate-fade-in">
+              <div className="flex items-center space-x-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Дані успішно розпізнано!</span>
+                <span>Реквізити розпізнано!</span>
               </div>
 
-              <div className="space-y-1.5 text-xs font-mono bg-black/50 p-3 rounded-xl border border-violet-500/20">
-                <div className="flex justify-between">
-                  <span className="text-violet-200/60">Тип:</span>
-                  <span className="text-violet-300 font-bold uppercase">{scannedResult.type}</span>
+              <div className="space-y-2 text-xs font-mono bg-black/60 p-3 rounded-xl border border-zinc-850">
+                <div className="flex justify-between border-b border-zinc-900 pb-1.5">
+                  <span className="text-zinc-500 text-[10px] uppercase">Отримувач:</span>
+                  <span className="text-white font-bold truncate max-w-[150px]">
+                    {scannedResult.recipientName || (scannedResult.type === 'utility' ? 'Київводоканал' : scannedResult.type)}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-violet-200/60">Реквізит:</span>
-                  <span className="text-white font-bold truncate max-w-[170px]" title={scannedResult.targetNumber}>
+                {scannedResult.taxId && (
+                  <div className="flex justify-between border-b border-zinc-900 pb-1.5">
+                    <span className="text-zinc-500 text-[10px] uppercase">ЄДРПОУ/ІПН:</span>
+                    <span className="text-white font-bold truncate max-w-[150px]">
+                      {scannedResult.taxId}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b border-zinc-900 pb-1.5">
+                  <span className="text-zinc-500 text-[10px] uppercase">Реквізит:</span>
+                  <span className="text-white font-mono truncate max-w-[150px]" title={scannedResult.targetNumber}>
                     {scannedResult.targetNumber}
                   </span>
                 </div>
                 {scannedResult.amount && (
-                  <div className="flex justify-between">
-                    <span className="text-violet-200/60">Сума:</span>
-                    <span className="text-emerald-400 font-extrabold">{scannedResult.amount} ₴</span>
+                  <div className="flex justify-between border-b border-zinc-900 pb-1.5">
+                    <span className="text-zinc-500 text-[10px] uppercase">Сума:</span>
+                    <span className="text-cyan-400 font-extrabold">{scannedResult.amount} ₴</span>
                   </div>
                 )}
                 {scannedResult.comment && (
                   <div className="flex justify-between">
-                    <span className="text-violet-200/60">Призначення:</span>
-                    <span className="text-violet-200 truncate max-w-[170px]" title={scannedResult.comment}>
+                    <span className="text-zinc-500 text-[10px] uppercase">Призначення:</span>
+                    <span className="text-zinc-300 truncate max-w-[150px]" title={scannedResult.comment}>
                       {scannedResult.comment}
                     </span>
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2">
                 <button
+                  type="button"
                   onClick={() => {
                     setScannedResult(null);
                     startScanner();
                   }}
-                  className="py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition"
+                  className="py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-bold transition"
                 >
-                  Сканувати знову
+                  Знову
                 </button>
                 <button
+                  type="button"
                   onClick={handleApplyResult}
-                  className="py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 transition"
+                  className="py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-extrabold text-xs uppercase tracking-wider transition"
                 >
-                  Заповнити формати
+                  Підтвердити
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Video Scanner Container */}
-              <div className="relative rounded-2xl overflow-hidden bg-black border border-violet-500/30 min-h-[240px] flex items-center justify-center">
-                <div id={scannerContainerId} className="w-full h-full min-h-[240px]" />
+            <div className="space-y-4">
+              {/* Native iOS feel camera viewport */}
+              <div className="relative rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-850 aspect-square flex items-center justify-center">
+                <div id={scannerContainerId} className="w-full h-full min-h-[260px] object-cover" />
 
-                {/* Overlaid QR Frame Guide */}
+                {/* Cyberpunk Laser Line and Corners */}
                 {isScanning && (
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-48 h-48 border-2 border-violet-400/80 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.3)] relative animate-pulse">
-                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-violet-300" />
-                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-violet-300" />
-                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-violet-300" />
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-violet-300" />
+                    {/* Pulsating target box */}
+                    <div className="w-56 h-56 border border-cyan-400/30 rounded-2xl relative shadow-[0_0_40px_rgba(34,211,238,0.15)]">
+                      {/* Corner guides */}
+                      <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-cyan-400 rounded-tl-[6px]" />
+                      <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-cyan-400 rounded-tr-[6px]" />
+                      <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-cyan-400 rounded-bl-[6px]" />
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-cyan-400 rounded-br-[6px]" />
+                      
+                      {/* Laser red/cyan pulsing line */}
+                      <div className="absolute top-1/2 left-4 right-4 h-[2px] bg-cyan-400/80 shadow-[0_0_10px_#22d3ee] animate-pulse" />
                     </div>
                   </div>
                 )}
 
+                {/* Background overlay info when error or loading */}
                 {cameraError && (
-                  <div className="absolute inset-0 bg-[#0F172A]/90 p-4 flex flex-col items-center justify-center text-center space-y-2">
-                    <AlertCircle className="w-8 h-8 text-amber-400" />
-                    <p className="text-xs text-white/90">{cameraError}</p>
+                  <div className="absolute inset-0 bg-zinc-950/95 p-4 flex flex-col items-center justify-center text-center space-y-3 z-10">
+                    <AlertCircle className="w-8 h-8 text-amber-500" />
+                    <p className="text-xs text-zinc-400 font-semibold max-w-[200px] leading-relaxed">{cameraError}</p>
                     <button
+                      type="button"
                       onClick={handleTestDemoScan}
-                      className="px-3 py-1.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-violet-300 text-xs font-bold mt-2 hover:bg-violet-500/30 transition"
+                      className="px-4 py-2 rounded-xl bg-cyan-400 text-zinc-950 text-xs font-black uppercase tracking-wider hover:bg-cyan-300 transition"
                     >
-                      🧪 Симулювати QR IBAN (Тест)
+                      ⚡ Симулювати QR-код
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Controls */}
-              <div className="flex items-center justify-between gap-2">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between gap-2.5 pt-1">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -277,28 +287,31 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess, showToast }: QR
                 />
 
                 <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 py-2.5 rounded-xl bg-[#131B2E] border border-violet-500/20 hover:bg-[#1C2740] text-violet-300 text-xs font-bold flex items-center justify-center space-x-1.5 transition"
+                  className="flex-1 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800/80 text-zinc-300 text-xs font-extrabold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition"
                 >
-                  <Upload className="w-3.5 h-3.5 text-violet-400" />
-                  <span>Фото з галереї</span>
+                  <Upload className="w-4 h-4 text-cyan-400" />
+                  <span>З Галереї</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={toggleTorch}
                   disabled={!isScanning}
-                  className="py-2.5 px-3 rounded-xl bg-[#131B2E] border border-violet-500/20 hover:bg-[#1C2740] text-amber-300 text-xs font-bold flex items-center justify-center transition disabled:opacity-40"
-                  title="Увімкнути спалах"
+                  className="py-3 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800/80 text-amber-400 text-xs font-bold flex items-center justify-center transition disabled:opacity-30"
+                  title="Ліхтарик"
                 >
                   <Flashlight className="w-4 h-4" />
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleTestDemoScan}
-                  className="py-2.5 px-3 rounded-xl bg-violet-500/20 border border-violet-400/30 text-violet-300 hover:bg-violet-500/30 text-xs font-bold transition"
-                  title="Тестовий сканування"
+                  className="py-3 px-4 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/20 text-xs font-black uppercase tracking-wider transition"
+                  title="Миттєве тестування сканування"
                 >
-                  🧪 Тест
+                  Тест
                 </button>
               </div>
             </div>

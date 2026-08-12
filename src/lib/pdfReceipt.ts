@@ -2,9 +2,9 @@ import { jsPDF } from 'jspdf';
 import { Transaction } from '../store';
 
 export function generateOfficialPDFReceipt(tx: Transaction) {
-  // Create a high-DPI canvas to render the receipt with full Cyrillic support
+  // Create a high-DPI canvas to render a pristine receipt with full Cyrillic support and gorgeous typography
   const canvas = document.createElement('canvas');
-  const scale = 2; // High resolution (approx 1654 x 2338 px for A4)
+  const scale = 2; // High-DPI resolution for sharp A4 output (approx 1588 x 2246 px)
   canvas.width = 794 * scale; 
   canvas.height = 1123 * scale;
   const ctx = canvas.getContext('2d');
@@ -16,73 +16,44 @@ export function generateOfficialPDFReceipt(tx: Transaction) {
 
   ctx.scale(scale, scale);
 
-  // Background
-  ctx.fillStyle = '#F8FAFC';
+  // Background - clean paper white
+  ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, 794, 1123);
 
-  // Top header bar
-  ctx.fillStyle = '#4F46E5'; // Premium Royal Indigo
-  ctx.fillRect(0, 0, 794, 90);
+  let y = 50;
 
-  // Logo & Bank Name
+  // Top Dark Header Block (Cohesive slate blue banking vibe)
+  ctx.fillStyle = '#090D16'; // Very dark premium slate
+  ctx.fillRect(0, 0, 794, 110);
+
+  // Logo & Bank Name (NEO•N•BANK)
+  ctx.fillStyle = '#22D3EE'; // Cyan Neon Accents
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText('NEO•N•BANK', 50, 65);
+
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 32px sans-serif';
-  ctx.fillText('Ne•OBank App', 45, 55);
+  ctx.font = '9px sans-serif';
+  ctx.fillText('АТ «НЕО•Н•БАНК» | ЄДРПОУ: 44411144 | вул. Хрещатик, 1, м. Київ, 01001', 50, 85);
 
-  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#94A3B8';
+  ctx.font = 'bold 13px sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText('ОФІЦІЙНА ЕЛЕКТРОННА КВИТАНЦІЯ-ЧЕК', 749, 53);
+  ctx.fillText('ЕЛЕКТРОННА КВИТАНЦІЯ', 744, 55);
+  ctx.font = '9px sans-serif';
+  ctx.fillText('ОФІЦІЙНИЙ ДОКУМЕНТ СИСТЕМИ', 744, 75);
+  ctx.fillText('VALIDATED BY UKRAINIAN NATIONAL BANK SECURE GATEWAY', 744, 88);
 
-  // White Document Box
-  ctx.fillStyle = '#FFFFFF';
-  ctx.strokeStyle = '#E2E8F0';
-  ctx.lineWidth = 1.5;
-  
-  // Draw rounded box for receipt
-  const boxX = 45;
-  const boxY = 120;
-  const boxW = 704;
-  const boxH = 920;
-  const radius = 12;
-
-  ctx.beginPath();
-  ctx.moveTo(boxX + radius, boxY);
-  ctx.lineTo(boxX + boxW - radius, boxY);
-  ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
-  ctx.lineTo(boxX + boxW, boxY + boxH - radius);
-  ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
-  ctx.lineTo(boxX + radius, boxY + boxH);
-  ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
-  ctx.lineTo(boxX, boxY + radius);
-  ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  let y = 165;
   ctx.textAlign = 'left';
 
-  // Receipt Title
+  // Receipt main title
+  y = 155;
   ctx.fillStyle = '#0F172A';
   ctx.font = 'bold 22px sans-serif';
-  ctx.fillText(`КВИТАНЦІЯ № ${tx.receiptNumber}`, 75, y);
+  ctx.fillText(`КВИТАНЦІЯ ПРО ПРОВЕДЕННЯ ПЛАТЕЖУ #TX-${tx.receiptNumber}-UA`, 50, y);
 
   y += 24;
-  ctx.fillStyle = '#64748B';
-  ctx.font = '13px sans-serif';
-  ctx.fillText('Банк платника / отримувача: АТ «Ne•OBank App» (Ліцензія НБУ №302 від 18.10.2018 р.)', 75, y);
-
-  y += 20;
-  ctx.strokeStyle = '#CBD5E1';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(75, y);
-  ctx.lineTo(719, y);
-  ctx.stroke();
-
-  // Table Details
-  y += 35;
-  const isIncome = tx.type === 'income';
+  ctx.fillStyle = '#475569';
+  ctx.font = '12px sans-serif';
   const formattedDate = new Date(tx.date).toLocaleString('uk-UA', {
     day: '2-digit',
     month: '2-digit',
@@ -91,125 +62,230 @@ export function generateOfficialPDFReceipt(tx: Transaction) {
     minute: '2-digit',
     second: '2-digit'
   });
+  ctx.fillText(`Дата та час операції: ${formattedDate} (за київським часом)`, 50, y);
 
+  // Elegant subtle line divider
+  y += 20;
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(50, y);
+  ctx.lineTo(744, y);
+  ctx.stroke();
+
+  // Draw clean, elegant, high-contrast tables for financial details
+  y += 35;
+  
+  // Custom rows representing actual Ukrainian banking documents
+  const isIncome = tx.type === 'income';
   const rows = [
-    ['Дата та час транзакції:', formattedDate],
-    ['Номер документу (RRN):', tx.receiptNumber],
-    ['Код авторизації:', `AUTH-${Math.floor(100000 + Math.random() * 900000)}`],
-    ['Спосіб оплати:', tx.isCash ? 'Готівковий гаманець (Cash Wallet)' : (tx.paymentMethod === 'atm' ? 'Банкомат Ne•OBank App' : 'Картка Luxury Platinum')],
-    ['Тип операції:', isIncome ? 'Зарахування / Прибуток' : 'Списання / Витрата'],
-    ['Назва платежу / Призначення:', tx.title],
-    ['Категорія:', tx.category],
-    ['Деталі та опис:', tx.description || 'Електронна транзакція в Ne•OBank App Core'],
-    ['Місце проведення:', tx.location || 'м. Київ, Україна (Digital Banking)'],
-    ['Статус платежу:', 'УСПІШНО ВИКОНАНО (SUCCESS)']
+    ['Тип операції:', isIncome ? 'Вхідний платіж / Зарахування' : 'Вихідний переказ / Сплата за реквізитами'],
+    ['Платник:', isIncome ? (tx.title || 'Зовнішній переказ') : 'Соколов Артем Сергійович (ARTEM SOKOLOV)'],
+    ['ІПН Платника:', '3574503010'],
+    ['Рахунок платника (IBAN):', 'UA93805299357450301000000123'],
+    ['Отримувач:', isIncome ? 'Соколов Артем Сергійович' : (tx.title || 'Організація')],
+    ['Призначення платежу:', tx.description || `Переказ коштів за послуги згідно договору`],
+    ['Код транзакції (RRN):', `TX-${tx.receiptNumber}-UA`],
+    ['Код авторизації НБУ:', `AUTH-${Math.floor(125000 + Math.random() * 800000)}`],
+    ['Голова правління:', 'Соколов А. С.'],
+    ['Статус платежу:', 'УСПІШНО ПРОВЕДЕНО']
   ];
 
   rows.forEach(([label, value]) => {
-    ctx.fillStyle = '#475569';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(label, 75, y);
+    // Label
+    ctx.fillStyle = '#64748B';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(label, 50, y);
 
-    ctx.fillStyle = '#0F172A';
-    ctx.font = '14px sans-serif';
-    ctx.fillText(value, 300, y);
+    // Value with perfect wrapping if too long
+    if (label === 'Статус платежу:') {
+      ctx.fillStyle = '#10B981'; // Green status
+    } else {
+      ctx.fillStyle = '#0F172A';
+    }
+    ctx.font = 'bold 12px sans-serif';
+    
+    // Simple text wrapping if string is extremely long (like custom descriptions)
+    if (value.length > 60) {
+      ctx.fillText(value.slice(0, 60) + '...', 280, y);
+    } else {
+      ctx.fillText(value, 280, y);
+    }
 
-    y += 28;
+    // Subtle dotted row lines
+    y += 10;
+    ctx.strokeStyle = '#F1F5F9';
+    ctx.beginPath();
+    ctx.moveTo(50, y);
+    ctx.lineTo(744, y);
+    ctx.stroke();
+
+    y += 20;
   });
 
-  y += 10;
-  ctx.beginPath();
-  ctx.moveTo(75, y);
-  ctx.lineTo(719, y);
-  ctx.stroke();
-
-  // Total Amount Box
-  y += 25;
-  ctx.fillStyle = isIncome ? '#ECFDF5' : '#F5F3FF'; // Light violet for expenses
-  ctx.strokeStyle = isIncome ? '#10B981' : '#8B5CF6'; // Violet border
-  ctx.lineWidth = 2;
+  // Amount Highlight Box
+  y += 5;
+  ctx.fillStyle = isIncome ? '#ECFDF5' : '#F8FAFC';
+  ctx.strokeStyle = isIncome ? '#10B981' : '#0F172A';
+  ctx.lineWidth = 1.5;
 
   ctx.beginPath();
-  ctx.roundRect(75, y, 644, 70, 10);
+  // Drawing rounded rectangle manually for legacy cross-compatibility
+  const rx = 50, ry = y, rw = 694, rh = 75, rr = 12;
+  ctx.moveTo(rx + rr, ry);
+  ctx.lineTo(rx + rw - rr, ry);
+  ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+  ctx.lineTo(rx + rw, ry + rh - rr);
+  ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+  ctx.lineTo(rx + rr, ry + rh);
+  ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+  ctx.lineTo(rx, ry + rr);
+  ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+  ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#0F172A';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText('Загальна сума операції:', 95, y + 42);
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('Загальна сума до сплати:', 75, y + 43);
 
   ctx.textAlign = 'right';
-  ctx.fillStyle = isIncome ? '#059669' : '#7C3AED'; // Rich green / deep violet
-  ctx.font = 'bold 26px sans-serif';
+  ctx.fillStyle = isIncome ? '#059669' : '#0F172A';
+  ctx.font = 'bold 24px sans-serif';
   const sign = isIncome ? '+' : '-';
-  ctx.fillText(`${sign}${(tx.amount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} UAH`, 700, y + 44);
+  ctx.fillText(`${sign}${(tx.amount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} UAH`, 719, y + 45);
 
-  // Official Stamp & Digital Signature Section
   ctx.textAlign = 'left';
-  y += 110;
 
-  // Render Official Bank Stamp on Canvas
-  const stampX = 520;
-  const stampY = y - 20;
+  // Digital Signature section (КЕП / ЕЦП)
+  y += 115;
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('ДОКУМЕНТ ПІДПИСАНО КВАЛІФІКОВАНИМ ЕЛЕКТРОННИМ ПІДПИСОМ (КЕП)', 50, y);
 
+  // Verification QR-code placeholder inside a gorgeous visual box
+  const qrBoxX = 50;
+  const qrBoxY = y + 20;
+  const qrBoxSize = 90;
+
+  // Draw simulated QR verification container
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+
+  // Generate fake high-tech QR blocks for validation authenticity
+  ctx.fillStyle = '#0F172A';
+  // Top-left finder pattern
+  ctx.fillRect(qrBoxX + 5, qrBoxY + 5, 25, 25);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(qrBoxX + 9, qrBoxY + 9, 17, 17);
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(qrBoxX + 13, qrBoxY + 13, 9, 9);
+
+  // Top-right finder pattern
+  ctx.fillRect(qrBoxX + 60, qrBoxY + 5, 25, 25);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(qrBoxX + 64, qrBoxY + 9, 17, 17);
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(qrBoxX + 68, qrBoxY + 13, 9, 9);
+
+  // Bottom-left finder pattern
+  ctx.fillRect(qrBoxX + 5, qrBoxY + 60, 25, 25);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(qrBoxX + 9, qrBoxY + 64, 17, 17);
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(qrBoxX + 13, qrBoxY + 68, 9, 9);
+
+  // Random QR matrix-style dots for authenticity
+  ctx.fillStyle = '#0F172A';
+  for (let i = 0; i < 7; i++) {
+    for (let j = 0; j < 7; j++) {
+      if ((i + j) % 2 === 0 || (i * j) % 3 === 1) {
+        ctx.fillRect(qrBoxX + 35 + i * 4, qrBoxY + 35 + j * 4, 3, 3);
+      }
+      if ((i * j) % 2 === 1) {
+        ctx.fillRect(qrBoxX + 5 + i * 4, qrBoxY + 35 + j * 4, 3, 3);
+        ctx.fillRect(qrBoxX + 35 + i * 4, qrBoxY + 5 + j * 4, 3, 3);
+      }
+    }
+  }
+
+  // Stamp circle (official royal blue wet stamp of the bank)
+  const stampX = 580;
+  const stampY = qrBoxY - 10;
+  
   ctx.save();
   ctx.translate(stampX, stampY);
-
-  // Stamp circles
-  ctx.strokeStyle = '#7C3AED'; // Royal Violet
+  ctx.strokeStyle = '#1E40AF'; // Royal blue stamp
   ctx.lineWidth = 3.5;
+
+  // Outer Circle
   ctx.beginPath();
-  ctx.arc(80, 80, 75, 0, Math.PI * 2);
+  ctx.arc(65, 65, 60, 0, Math.PI * 2);
   ctx.stroke();
 
+  // Inner Circle
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(80, 80, 60, 0, Math.PI * 2);
+  ctx.arc(65, 65, 48, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.fillStyle = '#7C3AED';
-  ctx.font = 'bold 11px sans-serif';
+  // Stamp lettering inside circular path
+  ctx.fillStyle = '#1E40AF';
+  ctx.font = 'bold 8.5px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('АТ «Ne•OBank App»', 80, 65);
-  ctx.font = '9px sans-serif';
-  ctx.fillText('ЛІЦЕНЗІЯ НБУ №302', 80, 80);
-  ctx.fillText('Е-ПІДПИС & ПЕЧАТКА', 80, 93);
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('★ ОПЛАЧЕНО ★', 80, 110);
+  ctx.fillText('АТ «НЕО•Н•БАНК»', 65, 48);
+  ctx.font = '7px sans-serif';
+  ctx.fillText('ЄДРПОУ 44411144', 65, 62);
+  ctx.fillText('СПЛАЧЕНО', 65, 74);
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('★ АТ НЕО-Н-БАНК ★', 65, 88);
   ctx.restore();
 
-  // Digital Signature Info
-  ctx.fillStyle = '#0F172A';
-  ctx.font = 'bold 15px sans-serif';
-  ctx.fillText('Кваліфікований електронний підпис та печатка (КЕП):', 75, y);
+  ctx.textAlign = 'left';
 
-  y += 22;
+  // Digital Signature Text
+  const sigTextX = qrBoxX + qrBoxSize + 20;
+  let sigY = qrBoxY + 10;
+
   ctx.fillStyle = '#475569';
-  ctx.font = '13px sans-serif';
-  ctx.fillText('Підписант: АТ «Ne•OBank App» (Електронний підпис авторизованого банку)', 75, y);
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Підписано КЕП: АТ «НЕО•Н•БАНК»', sigTextX, sigY);
 
-  y += 20;
-  ctx.fillText(`Сертифікат КЕП: № 4F82A9001234BCA90098`, 75, y);
+  sigY += 18;
+  ctx.fillText('Сертифікат КЕП: № UA-3574503010-2026', sigTextX, sigY);
 
-  y += 20;
-  ctx.font = '12px monospace';
-  ctx.fillText(`Хеш SHA256: 8f9b2a1c0d3e${tx.receiptNumber.replace(/-/g,'').toLowerCase()}7f8e9a1b2c3d4e5f`, 75, y);
+  sigY += 18;
+  ctx.font = '10px monospace';
+  ctx.fillText(`Хеш документа (SHA-256):`, sigTextX, sigY);
+  
+  sigY += 14;
+  ctx.fillText(`8f9b2a1c0d3e${tx.receiptNumber.substring(0, 12).toLowerCase()}a89f921`, sigTextX, sigY);
 
-  y += 20;
-  ctx.font = '12px sans-serif';
-  ctx.fillText('Перевірка чинності документу: https://neobank.app/verify', 75, y);
+  sigY += 18;
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#0F172A';
+  ctx.fillText('Скануйте QR-код для миттєвої перевірки статусу в реєстрі НБУ', sigTextX, sigY);
 
-  // Footer Note
-  y += 65;
+  // Footer Disclaimer
+  y = qrBoxY + qrBoxSize + 60;
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(50, y);
+  ctx.lineTo(744, y);
+  ctx.stroke();
+
+  y += 25;
   ctx.fillStyle = '#94A3B8';
-  ctx.font = '12px sans-serif';
+  ctx.font = '9.5px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Квитанція сформована автоматично в процесі обробки транзакції системою Ne•OBank App Core.', 397, y);
-  ctx.fillText('Служба підтримки Ne•OBank App: 0 800 300 800 | support@neobank.app', 397, y + 18);
+  ctx.fillText('Ця квитанція є офіційним платіжним документом, що підтверджує проведення фінансової транзакції.', 397, y);
+  ctx.fillText('Сформовано автоматизованою банківською системою NEO•N•BANK CORE. Довідкова служба: support@neobank.app', 397, y + 15);
 
-  // Convert canvas to image and export PDF via jsPDF
+  // Save PDF document using high resolution canvas data URL
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF('portrait', 'mm', 'a4');
   pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-  pdf.save(`Ne_OBank_App_Receipt_${tx.receiptNumber}.pdf`);
+  pdf.save(`NEON_BANK_RECEIPT_${tx.receiptNumber}.pdf`);
 }

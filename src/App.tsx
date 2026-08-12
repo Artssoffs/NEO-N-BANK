@@ -66,7 +66,7 @@ export default function App() {
     clearSecurityLogs
   } = useStore();
   
-  const [activeTab, setActiveTab] = useState<'main' | 'envelopes' | 'transfers' | 'analytics' | 'settings'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'transfers' | 'analytics' | 'settings'>('main');
   const [showBalance, setShowBalance] = useState(true);
   const [secretModeEnabled, setSecretModeEnabled] = useState(true);
   
@@ -341,12 +341,8 @@ export default function App() {
   };
 
   // Balances calculations
-  const totalEnvelopeCash = cashEnvelopes.reduce((sum, env) => sum + env.amount, 0);
-  const totalCashWallet = user.cashBalance + totalEnvelopeCash;
-  const totalWealth = user.balance + totalCashWallet + jar.currentAmount + user.cashbackBalance;
+  const totalWealth = user.balance;
 
-  const displayCashBalance = (user.cashBalance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const displayTotalCash = (totalCashWallet / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const displayCardBalance = (user.balance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const displayTotalWealth = (totalWealth / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -625,7 +621,7 @@ export default function App() {
         {/* Dynamic Island Header */}
         <div className="bg-[#0A0D12] pt-3 px-5 pb-2.5 flex justify-between items-center z-40 shrink-0 border-b border-violet-500/15">
           <div className="flex items-center space-x-2.5">
-            <img src={logoImg} alt="Ne•OBank App" className="w-8 h-8 rounded-xl object-cover border border-violet-400/50 shadow-md shadow-violet-500/30" />
+            <img src={user.avatarUrl || logoImg} alt="Ne•OBank App" className="w-8 h-8 rounded-xl object-cover border border-violet-400/50 shadow-md shadow-violet-500/30 animate-fade-in" />
             <div>
               <span className="font-extrabold tracking-tight text-sm text-white">Ne•<span className="text-violet-400 font-black">OBank App</span></span>
               <span className="text-[10px] text-violet-200/60 block leading-tight font-medium">Violet Edition</span>
@@ -674,116 +670,57 @@ export default function App() {
             <div className="space-y-4 animate-in fade-in duration-300">
               
               {/* Total Wealth Hero Card */}
-              <div className="relative rounded-3xl bg-gradient-to-br from-[#082F49] via-[#0E7490] to-[#0A101D] p-5 border border-cyan-400/30 shadow-2xl overflow-hidden">
-                <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-400/20 rounded-full filter blur-3xl pointer-events-none"></div>
+              <div className="relative rounded-3xl bg-gradient-to-br from-[#0F172A] to-[#020617] p-6 border border-zinc-800 shadow-2xl overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
 
-                <div className="flex justify-between items-start mb-2 relative z-10">
+                <div className="flex justify-between items-center relative z-10">
                   <div>
-                    <span className="text-[10px] text-cyan-100/70 font-semibold uppercase tracking-wider block">Загальний Капітал</span>
-                    <p className="text-[11px] text-cyan-200/60 mt-0.5">Картка + Готівка + Сейф</p>
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">Загальний Капітал</span>
+                    <div className="text-3xl font-black tracking-tight text-white flex items-baseline mt-2 font-mono">
+                      {showBalance ? displayTotalWealth : '••••••'} <span className="text-xl font-bold text-violet-400 ml-1.5 font-sans">₴</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-1.5">
-                    <button 
-                      onClick={() => setSecretModeEnabled(!secretModeEnabled)}
-                      className={`p-2 rounded-xl border transition-colors flex items-center space-x-1 text-xs ${
-                        secretModeEnabled 
-                          ? "bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/30 shadow-[0_0_8px_rgba(244,63,94,0.1)]" 
-                          : "bg-white/5 hover:bg-white/10 text-white/50 border-white/10"
-                      }`}
-                      title={secretModeEnabled ? "Вимкнути приватний режим" : "Увімкнути приватний режим"}
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span className="font-bold text-[10px] tracking-tight">{secretModeEnabled ? "Приватний" : "Публічний"}</span>
-                    </button>
-                    <button 
-                      onClick={() => setIsQuickBalanceEditOpen(true)}
-                      className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/30 transition-colors flex items-center space-x-1 text-xs"
-                      title="Швидка зміна балансу (1-Click)"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span className="font-bold text-[11px]">Змінити</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowBalance(!showBalance)}
-                      className="p-2 rounded-xl bg-black/30 hover:bg-black/50 text-cyan-300 border border-cyan-400/20 transition-colors"
-                      title="Сховати / Показати баланс"
-                    >
-                      {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div 
-                  onClick={() => setIsQuickBalanceEditOpen(true)}
-                  className="my-2 relative z-10 cursor-pointer hover:opacity-90 transition group/topbal"
-                  title="Натисніть для редагування балансу"
-                >
-                  <div className="text-3xl font-black tracking-tight text-white flex items-baseline">
-                    {showBalance ? displayTotalWealth : '••••••'} <span className="text-xl font-bold text-cyan-300 ml-1.5">₴</span>
-                  </div>
-                </div>
-
-                {/* Sub-breakdown */}
-                <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-cyan-500/20 relative z-10">
-                  <div className="p-2.5 rounded-2xl bg-black/30 border border-cyan-500/20">
-                    <span className="text-[10px] text-cyan-200/70 block">Готівковий гаманець</span>
-                    <span className="text-xs font-bold text-white mt-0.5 block">
-                      {showBalance ? `${displayCashBalance} ₴` : '••••'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-2xl bg-black/30 border border-cyan-500/20">
-                    <span className="text-[10px] text-cyan-200/70 block">Картка Ne•OBank App</span>
-                    <span className="text-xs font-bold text-cyan-300 mt-0.5 block">
-                      {showBalance ? `${displayCardBalance} ₴` : '••••'}
-                    </span>
-                  </div>
+                  
+                  <button 
+                    onClick={() => setShowBalance(!showBalance)}
+                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 border border-white/5 transition-colors"
+                    title={showBalance ? "Сховати баланс" : "Показати баланс"}
+                  >
+                    {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
-              {/* Quick Cash Operations Buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                <button 
-                  onClick={() => setIsExpenseOpen(true)}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/15 active:scale-95 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-400 mb-1.5">
-                    <Minus className="w-5 h-5" />
-                  </div>
-                  <span className="text-[11px] font-bold text-white">Витрата</span>
-                  <span className="text-[9px] text-cyan-300/60">Готівка</span>
-                </button>
-
-                <button 
-                  onClick={() => setIsIncomeOpen(true)}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/15 active:scale-95 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/15 flex items-center justify-center text-teal-400 mb-1.5">
-                    <Plus className="w-5 h-5" />
-                  </div>
-                  <span className="text-[11px] font-bold text-white">Дохід</span>
-                  <span className="text-[9px] text-teal-300/60">Готівка</span>
-                </button>
-
-                <button 
-                  onClick={() => setIsAtmOpen(true)}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/15 active:scale-95 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-400 mb-1.5">
-                    <Landmark className="w-5 h-5" />
-                  </div>
-                  <span className="text-[11px] font-bold text-white">Банкомат</span>
-                  <span className="text-[9px] text-blue-300/60">Зняти/Внести</span>
-                </button>
-
+              {/* Quick Actions Buttons - Exclusive and Non-Cash */}
+              <div className="grid grid-cols-2 gap-3">
                 <button 
                   onClick={() => setIsTransfersOpen(true)}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/15 active:scale-95 transition-all"
+                  className="flex items-center justify-between p-4 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/10 active:scale-98 transition-all group text-left"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-400 mb-1.5">
-                    <ArrowRightLeft className="w-5 h-5" />
+                  <div className="flex items-center space-x-3 font-sans">
+                    <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center text-violet-400">
+                      <ArrowRightLeft className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-white block">Платежі та Перекази</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">Картка, IBAN, Комуналка</span>
+                    </div>
                   </div>
-                  <span className="text-[11px] font-bold text-white">Перекази</span>
-                  <span className="text-[9px] text-purple-300/60">P2P/IBAN</span>
+                </button>
+
+                <button 
+                  onClick={() => setIsCashbackOpen(true)}
+                  className="flex items-center justify-between p-4 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/10 active:scale-98 transition-all group text-left"
+                >
+                  <div className="flex items-center space-x-3 font-sans">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-400">
+                      <Gift className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-white block">Накопичений Кешбек</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">Керувати накопиченнями</span>
+                    </div>
+                  </div>
                 </button>
               </div>
 
@@ -943,126 +880,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: ENVELOPES & JAR */}
-          {activeTab === 'envelopes' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              
-              <div className="flex justify-between items-center px-1">
-                <div>
-                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">Конверти та Накопичення</h2>
-                  <p className="text-[11px] text-cyan-200/60">Розподіляйте готівку за цілями</p>
-                </div>
-                <button 
-                  onClick={() => setIsNewEnvelopeOpen(true)}
-                  className="p-2 rounded-xl bg-cyan-500 text-black font-bold text-xs flex items-center space-x-1 shadow-lg shadow-cyan-500/20 hover:bg-cyan-400"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Новий</span>
-                </button>
-              </div>
 
-              {/* Envelopes list */}
-              <div className="space-y-3">
-                {cashEnvelopes.map((env) => {
-                  const progress = Math.min(100, Math.round((env.amount / env.targetAmount) * 100));
-                  return (
-                    <div key={env.id} className="p-4 rounded-3xl bg-[#121721] border border-cyan-500/20 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
-                            <Vault className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-bold text-white">{env.name}</h4>
-                            <span className="text-[10px] text-cyan-300/70">{env.category}</span>
-                          </div>
-                        </div>
-
-                        <span className="text-xs font-black text-cyan-300 font-mono">
-                          {progress}%
-                        </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="space-y-1">
-                        <div className="w-full h-2 rounded-full bg-black/50 overflow-hidden border border-cyan-500/20">
-                          <div 
-                            className="h-full bg-gradient-to-r from-cyan-400 to-teal-300 transition-all duration-500"
-                            style={{ width: `${progress}%` }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between text-[10px] text-white/60 font-mono">
-                          <span>Зібрано: {(env.amount / 100).toLocaleString('uk-UA')} ₴</span>
-                          <span>Ціль: {(env.targetAmount / 100).toLocaleString('uk-UA')} ₴</span>
-                        </div>
-                      </div>
-
-                      {/* Envelope controls */}
-                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-cyan-500/10">
-                        <button
-                          onClick={() => {
-                            setSelectedEnvelope(env);
-                            setEnvelopeActionType('deposit');
-                            setIsEnvelopeModalOpen(true);
-                          }}
-                          className="py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-400/30 transition"
-                        >
-                          + Поповнити
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedEnvelope(env);
-                            setEnvelopeActionType('withdraw');
-                            setIsEnvelopeModalOpen(true);
-                          }}
-                          className="py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-xs font-bold border border-white/10 transition"
-                        >
-                          - Вилучити
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Jar Widget */}
-              <div className="p-5 rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617] border border-cyan-500/30 shadow-2xl space-y-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-2xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-300">
-                      <PiggyBank className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white">{jar.title}</h4>
-                      <p className="text-[10px] text-teal-300/80">Скарбничка / Банка</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setIsJarOpen(true)}
-                    className="px-3 py-1.5 rounded-xl bg-teal-400 text-black text-xs font-extrabold hover:bg-teal-300 shadow-md shadow-teal-500/20 transition"
-                  >
-                    Закинути ₴
-                  </button>
-                </div>
-
-                <div className="my-1">
-                  <span className="text-[10px] text-teal-200/60 block uppercase font-medium">Зібрана сума</span>
-                  <div className="text-2xl font-black text-white">
-                    {(jar.currentAmount / 100).toLocaleString('uk-UA')} <span className="text-teal-300 text-sm">₴</span>
-                  </div>
-                </div>
-
-                <div className="w-full h-2.5 rounded-full bg-black/60 overflow-hidden border border-teal-500/30">
-                  <div 
-                    className="h-full bg-gradient-to-r from-teal-400 to-cyan-300 transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.round((jar.currentAmount / jar.targetAmount) * 100))}%` }}
-                  ></div>
-                </div>
-              </div>
-
-            </div>
-          )}
 
           {/* TAB 3: TRANSFERS & PAYMENTS */}
           {activeTab === 'transfers' && (
@@ -1192,13 +1010,39 @@ export default function App() {
               <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
                 <div className="flex items-center justify-between border-b border-violet-500/15 pb-3">
                   <div className="flex items-center space-x-3">
-                    <img 
-                      src={logoImg} 
-                      alt="Profile Avatar" 
-                      onClick={() => setIsQuickBalanceEditOpen(true)}
-                      className="w-12 h-12 rounded-2xl object-cover border border-violet-400/40 shadow-md cursor-pointer hover:scale-105 transition" 
-                      title="Натисніть для швидкої зміни балансу"
-                    />
+                    <div className="relative group cursor-pointer">
+                      <img 
+                        src={user.avatarUrl || logoImg} 
+                        alt="Profile Avatar" 
+                        onClick={() => document.getElementById('avatar-file-input')?.click()}
+                        className="w-12 h-12 rounded-2xl object-cover border border-violet-400/40 shadow-md hover:brightness-75 hover:scale-105 transition duration-200" 
+                        title="Змінити аватар"
+                      />
+                      <input 
+                        id="avatar-file-input"
+                        type="file" 
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              showToast('Помилка', 'Розмір фото не має перевищувати 2MB', 'error');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              updateUser({ avatarUrl: reader.result as string });
+                              showToast('NEO•N•BANK', 'Фото профілю оновлено!', 'success');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <span className="text-[8px] text-white font-bold uppercase">Змінити</span>
+                      </div>
+                    </div>
                     <div>
                       <h4 className="text-xs font-bold text-white">{user.name}</h4>
                       <p className="text-[10px] text-violet-300 font-mono mt-0.5">{user.iban}</p>
@@ -1226,7 +1070,8 @@ export default function App() {
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const creditNum = Math.round(parseFloat(profileCreditLimit) * 100) || user.creditLimit;
+                      const parsedLimit = parseFloat(profileCreditLimit);
+                      const creditNum = isNaN(parsedLimit) ? user.creditLimit : Math.round(parsedLimit * 100);
                       updateUser({
                         name: profileName.trim(),
                         phone: profilePhone.trim(),
@@ -1330,9 +1175,9 @@ export default function App() {
                     </span>
                   </div>
                   <div className="p-2.5 rounded-2xl bg-black/40 border border-violet-500/20">
-                    <span className="text-[10px] text-violet-300/70 block">Готівковий залишок</span>
+                    <span className="text-[10px] text-violet-300/70 block">Кредитний ліміт</span>
                     <span className="text-xs font-bold font-mono text-violet-300 mt-0.5 block">
-                      {formatUAH(user.cashBalance)}
+                      {formatUAH(user.creditLimit)}
                     </span>
                   </div>
                 </div>
@@ -1560,16 +1405,7 @@ export default function App() {
             <span className="text-[10px] mt-0.5">Гаманець</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('envelopes')}
-            className={cn(
-              "flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all",
-              activeTab === 'envelopes' ? "text-violet-400 font-bold" : "text-white/40 hover:text-white"
-            )}
-          >
-            <Vault className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Конверти</span>
-          </button>
+
 
           <button
             onClick={() => setActiveTab('transfers')}
@@ -1918,33 +1754,7 @@ export default function App() {
                   <span>Завантажити Офіційний PDF Чек з Печаткою</span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      setIsEditingTx(true);
-                      setEditTxTitle(selectedTx.title);
-                      setEditTxCategory(selectedTx.category);
-                      setEditTxAmount((selectedTx.amount / 100).toString());
-                      setEditTxDesc(selectedTx.description || '');
-                      setEditTxLocation(selectedTx.location || '');
-                    }}
-                    className="py-2.5 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/30 text-violet-300 font-bold text-xs transition flex items-center justify-center space-x-1"
-                  >
-                    <span>Редагувати</span>
-                  </button>
 
-                  <button
-                    onClick={() => {
-                      deleteTransaction(selectedTx.id);
-                      setSelectedTx(null);
-                      showToast('Ne•OBank App', 'Транзакцію успішно видалено з історії', 'info');
-                    }}
-                    className="py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/30 text-rose-300 font-bold text-xs transition flex items-center justify-center space-x-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Видалити</span>
-                  </button>
-                </div>
               </div>
             ) : (
               <form
