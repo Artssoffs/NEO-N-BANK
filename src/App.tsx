@@ -1,1909 +1,781 @@
-import React, { useState, useEffect } from 'react';
-import { format, isToday, isYesterday } from 'date-fns';
-import { uk } from 'date-fns/locale';
+import React, { useState } from 'react';
 import { 
-  CreditCard, PieChart, Settings, ArrowRightLeft, 
-  CheckCircle2, AlertCircle, X, Bell, Smartphone,
-  FileText, PiggyBank, Gift, UserCircle, Save, Fingerprint, ScanFace,
-  Wallet, Eye, EyeOff, Plus, Minus, ShoppingBag, Fuel, Utensils, Home, HeartPulse, Smile,
-  Vault, ArrowUpRight, ArrowDownLeft, Landmark, DollarSign, Receipt, Trash2, ShieldCheck, Lock,
-  RefreshCw, ChevronRight, Copy, Share2, Cloud, Table, Search, CheckSquare
+  CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Eye, EyeOff, 
+  Settings, Shield, Smartphone, FileText, Home, Camera, Download, 
+  X, ChevronRight, Sparkles, Trash2, Landmark, Building2,
+  Lock, CheckCircle2, Zap, Bell, ArrowLeftRight, HelpCircle, User,
+  Plus, MessageSquare, Send, Percent, TrendingUp, Gift, Award, Clock
 } from 'lucide-react';
-import { cn } from './lib/utils';
-import { useStore, Transaction, CashEnvelope } from './store';
-import { initAuth, googleSignIn, logout } from './lib/auth';
-import { exportTransactionsToDocs } from './lib/docsExport';
-import { exportTransactionsToKeep } from './lib/keepExport';
-import { exportTransactionsToSheets } from './lib/sheetsExport';
-import { syncToFirestore, subscribeToFirestore, testConnection } from './lib/firestoreSync';
-import { generateOfficialPDFReceipt } from './lib/pdfReceipt';
-import { GoogleTasksModal } from './components/GoogleTasksModal';
-import { QuickBalanceEditModal } from './components/QuickBalanceEditModal';
-import logoImg from './assets/images/neobank_logo_violet_1786469205094.jpg';
-import { formatUAH } from './lib/utils';
-
-import { TurquoiseCard } from './components/TurquoiseCard';
-import { TransfersModal } from './components/TransfersModal';
-import { CashbackModal } from './components/CashbackModal';
-import { CurrencyConverter } from './components/CurrencyConverter';
-import { SyncReminderModal } from './components/SyncReminderModal';
-
-interface Toast {
-  id: string;
-  title: string;
-  message: string;
-  type?: 'success' | 'error' | 'info' | 'push';
-  subtitle?: string;
-  category?: string;
-  balance?: string;
-  time?: string;
-  iconType?: 'expense' | 'income' | 'card' | 'atm';
-}
 
 export default function App() {
-  const { 
-    user, 
-    transactions, 
-    cashEnvelopes, 
-    securityLogs,
-    jar,
-    cashbackCategories,
-    updateUser, 
-    updateLastSyncDate,
-    editTransaction,
-    deleteTransaction,
-    addCashExpense, 
-    addCashIncome, 
-    atmWithdrawal, 
-    depositCashToCard,
-    depositToJar,
-    addEnvelope,
-    transferToEnvelope,
-    withdrawFromEnvelope,
-    toggleCardFreeze,
-    clearHistory, 
-    addSecurityLog,
-    clearSecurityLogs
-  } = useStore();
-  
-  const [activeTab, setActiveTab] = useState<'main' | 'transfers' | 'analytics' | 'settings'>('main');
-  const [showBalance, setShowBalance] = useState(true);
-  const [secretModeEnabled, setSecretModeEnabled] = useState(true);
-  
-  // Modals & BottomSheets
-  const [isExpenseOpen, setIsExpenseOpen] = useState(false);
-  const [isIncomeOpen, setIsIncomeOpen] = useState(false);
-  const [isAtmOpen, setIsAtmOpen] = useState(false);
-  const [isTransfersOpen, setIsTransfersOpen] = useState(false);
-  const [isCashbackOpen, setIsCashbackOpen] = useState(false);
-  const [isJarOpen, setIsJarOpen] = useState(false);
-  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
-  const [isQuickBalanceEditOpen, setIsQuickBalanceEditOpen] = useState(false);
-  
-  const [isEnvelopeModalOpen, setIsEnvelopeModalOpen] = useState(false);
-  const [selectedEnvelope, setSelectedEnvelope] = useState<CashEnvelope | null>(null);
-  const [envelopeActionType, setEnvelopeActionType] = useState<'deposit' | 'withdraw'>('deposit');
-  const [isNewEnvelopeOpen, setIsNewEnvelopeOpen] = useState(false);
-  
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [isEditingTx, setIsEditingTx] = useState(false);
-  const [editTxTitle, setEditTxTitle] = useState('');
-  const [editTxCategory, setEditTxCategory] = useState('');
-  const [editTxAmount, setEditTxAmount] = useState('');
-  const [editTxDesc, setEditTxDesc] = useState('');
-  const [editTxLocation, setEditTxLocation] = useState('');
+  const [activeTab, setActiveTab] = useState('home');
+  const [hideBalances, setHideBalances] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
-  // Profile Edit State
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [profileName, setProfileName] = useState(user.name);
-  const [profilePhone, setProfilePhone] = useState(user.phone || '');
-  const [profileEmail, setProfileEmail] = useState(user.email || '');
-  const [profileIban, setProfileIban] = useState(user.iban);
-  const [profileCardHolder, setProfileCardHolder] = useState(user.cardHolder);
-  const [profileCreditLimit, setProfileCreditLimit] = useState((user.creditLimit / 100).toString());
-
-  const [authScreen, setAuthScreen] = useState<'app_start' | null>(user.requireBiometrics ? 'app_start' : null);
-  
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  // Form states
-  const [amountInput, setAmountInput] = useState('');
-  const [categoryInput, setCategoryInput] = useState('Продукти & Супермаркети');
-  const [titleInput, setTitleInput] = useState('');
-  const [descInput, setDescInput] = useState('');
-  const [locationInput, setLocationInput] = useState('');
-
-  // New Envelope Form
-  const [newEnvName, setNewEnvName] = useState('');
-  const [newEnvTarget, setNewEnvTarget] = useState('');
-  const [newEnvCat, setNewEnvCat] = useState('Продукти & Супермаркети');
-
-  const showToast = (
-    title: string, 
-    message: string, 
-    type: 'success' | 'error' | 'info' | 'push' = 'push',
-    extra?: { subtitle?: string; category?: string; balance?: string; iconType?: 'expense' | 'income' | 'card' | 'atm' }
-  ) => {
-    const id = Math.random().toString(36);
-    const time = format(new Date(), 'HH:mm');
-    setToasts(prev => [...prev, { id, title, message, type, time, ...extra }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, type === 'push' ? 6000 : 4000);
-  };
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Filter cash transactions
-  const cashTransactions = transactions.filter(tx => tx.isCash !== false);
-  
-  // Real-time filtered transactions by title, category, or date
-  const filteredTransactions = transactions.filter(tx => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-
-    const titleMatch = (tx.title || '').toLowerCase().includes(q) || (tx.description || '').toLowerCase().includes(q);
-    const categoryMatch = (tx.category || '').toLowerCase().includes(q);
-
-    const dateObj = new Date(tx.date);
-    const formattedDate1 = format(dateObj, 'dd.MM.yyyy').toLowerCase();
-    const formattedDate2 = format(dateObj, 'd MMM', { locale: uk }).toLowerCase();
-    const formattedDate3 = format(dateObj, 'd MMMM yyyy', { locale: uk }).toLowerCase();
-    const isoDate = format(dateObj, 'yyyy-MM-dd').toLowerCase();
-
-    let relativeDate = '';
-    if (isToday(dateObj)) relativeDate = 'сьогодні';
-    else if (isYesterday(dateObj)) relativeDate = 'вчора';
-
-    const dateMatch =
-      formattedDate1.includes(q) ||
-      formattedDate2.includes(q) ||
-      formattedDate3.includes(q) ||
-      isoDate.includes(q) ||
-      relativeDate.includes(q);
-
-    return titleMatch || categoryMatch || dateMatch;
+  // Персональні дані за вимогами
+  const [profile, setProfile] = useState({
+    fullName: "Соколов Артем Сергійович",
+    cardName: "ARTEM SOKOLOV",
+    phone: "+380 66 666 10 25",
+    email: "artemsokoloff@ukr.net",
+    iban: "UA283223130000026009843210123",
+    taxId: "3574503010",
+    creditLimit: 50000.00,
+    // Використання завантаженого користувачем фото як аватарки профілю
+    avatarUrl: "image.png"
   });
 
-  const groupedTransactions = filteredTransactions.reduce((acc, tx) => {
-    const date = new Date(tx.date);
-    let dateKey = format(date, 'yyyy-MM-dd');
-    if (isToday(date)) dateKey = 'Сьогодні';
-    else if (isYesterday(date)) dateKey = 'Вчора';
-    else dateKey = format(date, 'd MMM', { locale: uk });
+  // Один компактний основний баланс картки
+  const [cardBalance, setCardBalance] = useState(65314.00);
+  const cardNumber = "5375 4161 8888 9012";
+  const cardExpiry = "08/29";
+  const cardCvv = "842";
+  const [isCardFlipped, setIsCardFlipped] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
 
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(tx);
-    return acc;
-  }, {} as Record<string, Transaction[]>);
+  // Кешбек
+  const [cashbackBalance, setCashbackBalance] = useState(245.00);
 
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isSyncReminderOpen, setIsSyncReminderOpen] = useState(false);
-
-  // 30-day Google Docs / Keep Sync Reminder logic
-  useEffect(() => {
-    if (authScreen === null) {
-      const lastSync = user.lastSyncDate;
-      let days = 30;
-      if (lastSync) {
-        const diff = Date.now() - new Date(lastSync).getTime();
-        days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      }
-      if (days >= 30) {
-        const timer = setTimeout(() => {
-          setIsSyncReminderOpen(true);
-        }, 1200);
-        return () => clearTimeout(timer);
-      }
+  // Історія транзакцій
+  const [transactions, setTransactions] = useState<any[]>([
+    {
+      id: 'CSH-8842-SENSE',
+      title: 'Супермаркет Сільпо',
+      category: 'Продукти та супермаркети',
+      amount: -420.00,
+      date: '12.08.2026, 03:56:54',
+      location: 'м. Київ, вул. Хрещатик, 12',
+      details: 'Оплата карткою на касі',
+      transferType: 'card'
+    },
+    {
+      id: '39C3-D3AP-VUM',
+      title: 'Переказ за IBAN UA093052...',
+      category: 'Оплата за реквізитами',
+      amount: -249.00,
+      date: '12.08.2026, 04:01:49',
+      location: 'Онлайн-банкінг',
+      details: 'Оплата за водопостачання о/р 998877',
+      transferType: 'iban'
+    },
+    {
+      id: 'CSH-0092-SENSE',
+      title: 'Повернення боргу',
+      category: 'Поповнення рахунку',
+      amount: 5000.00,
+      date: '10.08.2026, 03:56:54',
+      location: 'Переказ P2P',
+      details: 'Зарахування від Андрія',
+      transferType: 'card'
     }
-  }, [user.lastSyncDate, authScreen]);
+  ]);
 
-  useEffect(() => {
-    testConnection();
-    let unsubscribeFirestore: (() => void) | undefined;
-    
-    const unsubscribeAuth = initAuth(
-      (user, token) => {
-        setGoogleToken(token);
-        unsubscribeFirestore = subscribeToFirestore();
-      },
-      () => {
-        setGoogleToken(null);
-        if (unsubscribeFirestore) unsubscribeFirestore();
-      }
-    );
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeFirestore) unsubscribeFirestore();
+  // Підтримка чат
+  const [messages, setMessages] = useState([
+    { id: 1, sender: 'support', text: 'Вітаємо в онлайн-підтримці NE•OBANK! Чим я можу вам допомогти?', time: '21:40' }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+
+  // Модальні вікна
+  const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [transferSubTab, setTransferSubTab] = useState('card');
+
+  // Форма переказу
+  const [transferForm, setTransferForm] = useState({
+    recipientCard: '',
+    phone: '',
+    iban: '',
+    recipientName: '',
+    utilityOrg: 'Київводоканал / Водопостачання',
+    amount: '',
+    comment: ''
+  });
+
+  const showToast = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleExecuteTransfer = (e: React.FormEvent) => {
+    e.preventDefault();
+    const sum = parseFloat(transferForm.amount);
+    if (!sum || sum <= 0) {
+      showToast("Введіть коректну суму!");
+      return;
+    }
+    if (sum > cardBalance) {
+      showToast("Недостатньо коштів на картці!");
+      return;
+    }
+
+    setCardBalance(prev => prev - sum);
+
+    const newTx = {
+      id: 'TX-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
+      title: transferSubTab === 'card' ? `Переказ на картку ${transferForm.recipientCard.slice(-4) || '••••'}` :
+             transferSubTab === 'mobile' ? `Поповнення ${transferForm.phone}` :
+             transferSubTab === 'iban' ? `Переказ за IBAN ${transferForm.recipientName || 'Отримувач'}` : `Комуналка: ${transferForm.utilityOrg}`,
+      category: transferSubTab === 'utility' ? 'Комунальні платежі' : 'Переказ коштів',
+      amount: -sum,
+      date: new Date().toLocaleString('uk-UA'),
+      location: 'Мобільний додаток',
+      details: transferForm.comment || 'Оплата послуг',
+      transferType: transferSubTab
     };
-  }, []);
 
-  useEffect(() => {
-    if (googleToken) {
-      const unsub = useStore.subscribe(() => {
-        syncToFirestore();
-      });
-      return unsub;
-    }
-  }, [googleToken]);
-
-  const handleExportSheets = async () => {
-    if (cashTransactions.length === 0) {
-      showToast('NEO-N•BANK', 'Немає записів для експорту', 'error');
-      return;
-    }
-
-    try {
-      setIsExporting(true);
-      let token = googleToken;
-      if (!token) {
-        const result = await googleSignIn();
-        if (result) {
-          token = result.accessToken;
-          setGoogleToken(token);
-        } else {
-          return;
-        }
-      }
-      
-      const { spreadsheetUrl } = await exportTransactionsToSheets(cashTransactions);
-      updateLastSyncDate();
-      setIsSyncReminderOpen(false);
-      showToast('Google Sheets', 'Успішно експортовано в Google Sheets (Таблиці)', 'success');
-    } catch (e: any) {
-      if (
-        e?.code !== 'auth/popup-closed-by-user' &&
-        e?.code !== 'auth/cancelled-popup-request' &&
-        !e?.message?.includes('popup-closed-by-user')
-      ) {
-        console.error(e);
-        showToast('Google Sheets', 'Помилка експорту в Google Sheets', 'error');
-      }
-    } finally {
-      setIsExporting(false);
-    }
+    setTransactions([newTx, ...transactions]);
+    setTransferForm({ recipientCard: '', phone: '', iban: '', recipientName: '', utilityOrg: 'Київводоканал / Водопостачання', amount: '', comment: '' });
+    showToast(`Успішно сплачено ${sum.toFixed(2)} ₴`);
   };
 
-  const handleExportDocs = async () => {
-    if (cashTransactions.length === 0) {
-      showToast('NEO-N•BANK', 'Немає записів для експорту', 'error');
-      return;
-    }
-
-    try {
-      setIsExporting(true);
-      let token = googleToken;
-      if (!token) {
-        const result = await googleSignIn();
-        if (result) {
-          token = result.accessToken;
-          setGoogleToken(token);
-        } else {
-          return;
-        }
-      }
-      
-      await exportTransactionsToDocs(cashTransactions);
-      updateLastSyncDate();
-      setIsSyncReminderOpen(false);
-      showToast('Google Docs', 'Успішно експортовано виписку в Google Docs', 'success');
-    } catch (e: any) {
-      if (
-        e?.code !== 'auth/popup-closed-by-user' &&
-        e?.code !== 'auth/cancelled-popup-request' &&
-        !e?.message?.includes('popup-closed-by-user')
-      ) {
-        console.error(e);
-        showToast('Google Docs', 'Помилка експорту в Docs', 'error');
-      }
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleExportKeep = async () => {
-    if (cashTransactions.length === 0) {
-      showToast('NEO-N•BANK', 'Немає записів для експорту', 'error');
-      return;
-    }
-
-    try {
-      setIsExporting(true);
-      const res = await exportTransactionsToKeep(cashTransactions);
-      updateLastSyncDate();
-      setIsSyncReminderOpen(false);
-      
-      if (res.copied) {
-        showToast(
-          'Google Keep',
-          '📋 Виписку скопійовано! Вставте її в Keep',
-          'success'
-        );
-        // We attempt to open Google Keep for creation
-        window.open('https://keep.google.com/#create', '_blank', 'noopener,noreferrer');
-      } else {
-        // Fallback if clipboard API fails
-        showToast('Google Keep', 'Не вдалося скопіювати автоматично.', 'error');
-      }
-    } catch (e: any) {
-      console.error(e);
-      showToast('Google Keep', 'Помилка копіювання даних для Keep', 'error');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleSnooze30Days = () => {
-    updateLastSyncDate(new Date().toISOString());
-    setIsSyncReminderOpen(false);
-    showToast('NEO-N•BANK', 'Нагадування про резервне копіювання відкладено на 30 днів', 'info');
-  };
-
-  // Balances calculations
-  const totalWealth = user.balance;
-
-  const displayCardBalance = (user.balance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const displayTotalWealth = (totalWealth / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  // Add Expense submit
-  const handleAddExpenseSubmit = (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = Math.round(parseFloat(amountInput.replace(',', '.')) * 100);
-    if (!parsedAmount || parsedAmount <= 0) {
-      showToast('Помилка', 'Введіть суму витрати', 'error');
-      return;
-    }
-    
-    addCashExpense({
-      amount: parsedAmount,
-      category: categoryInput,
-      title: titleInput || categoryInput,
-      description: descInput,
-      location: locationInput
-    });
+    if (!inputMessage.trim()) return;
 
-    const amountFormatted = (parsedAmount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const newBalFormatted = ((user.cashBalance - parsedAmount) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const locStr = locationInput ? ` • ${locationInput}` : '';
+    const userMsg = { id: Date.now(), sender: 'user', text: inputMessage, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+    setMessages(prev => [...prev, userMsg]);
+    setInputMessage('');
 
-    showToast(
-      'NEO-N•BANK',
-      `💸 Нова транзакція: -${amountFormatted} ₴`,
-      'push',
-      {
-        subtitle: `${titleInput || categoryInput}${locStr}`,
-        category: categoryInput,
-        balance: `Готівковий залишок: ${newBalFormatted} ₴`,
-        iconType: 'expense'
-      }
-    );
-
-    setIsExpenseOpen(false);
-    setAmountInput('');
-    setTitleInput('');
-    setDescInput('');
-    setLocationInput('');
+    setTimeout(() => {
+      const supportReply = { 
+        id: Date.now() + 1, 
+        sender: 'support', 
+        text: 'Дякуємо за звернення! Оператор перевіряє інформацію за вашим рахунком.', 
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+      };
+      setMessages(prev => [...prev, supportReply]);
+    }, 1200);
   };
 
-  // Add Income submit
-  const handleAddIncomeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsedAmount = Math.round(parseFloat(amountInput.replace(',', '.')) * 100);
-    if (!parsedAmount || parsedAmount <= 0) {
-      showToast('Помилка', 'Введіть суму доходу', 'error');
-      return;
-    }
-    
-    addCashIncome({
-      amount: parsedAmount,
-      category: categoryInput,
-      title: titleInput || 'Надходження готівки',
-      description: descInput
-    });
+  // Високоякісна квитанція без помилок з підписом та вимогами до IBAN
+  const downloadOfficialPDFReceipt = (tx: any) => {
+    const receiptWindow = window.open('', '_blank');
+    if (!receiptWindow) return;
+    const isIBAN = tx.transferType === 'iban' || tx.id.includes('39C3');
 
-    const amountFormatted = (parsedAmount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const newBalFormatted = ((user.cashBalance + parsedAmount) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="uk">
+      <head>
+        <meta charset="UTF-8">
+        <title>Квитанція_${tx.id}</title>
+        <style>
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #111; line-height: 1.5; background: #fff; }
+          .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+          .logo { font-size: 24px; font-weight: 900; letter-spacing: -1px; color: #000; }
+          .stamp-box { border: 2px solid #00F5D4; color: #009688; padding: 10px 15px; border-radius: 8px; font-size: 11px; text-align: center; font-weight: bold; background: #F0FDFB; }
+          .title { font-size: 20px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+          .subtitle { font-size: 12px; color: #666; margin-bottom: 25px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+          td { padding: 12px 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+          td.label { color: #555; width: 45%; font-weight: 500; }
+          td.value { font-weight: 600; text-align: right; color: #000; }
+          .amount-row td { font-size: 18px; font-weight: bold; border-top: 2px solid #000; border-bottom: 2px solid #000; background: #FAFAFA; }
+          .footer { margin-top: 40px; font-size: 11px; color: #777; border-top: 1px solid #ddd; padding-top: 15px; text-align: center; }
+          .notice-box { background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px; padding: 12px; margin-top: 20px; font-size: 11px; color: #92400E; line-height: 1.4; }
+          .kep-seal { margin-top: 25px; background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; font-size: 10px; font-family: monospace; color: #374151; display: flex; justify-content: space-between; align-items: center; }
+          .signature { font-family: 'Brush Script MT', cursive, sans-serif; font-size: 20px; color: #1e3a8a; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="logo">NE•OBANK</div>
+            <div style="font-size: 11px; color: #666;">АТ «НЕО БАНК АПП» | Ліцензія НБУ №302 від 18.10.2018 р.</div>
+          </div>
+          <div class="stamp-box">
+            ОФІЦІЙНА КВИТАНЦІЯ<br>СПЛАЧЕНО УСПІШНО
+          </div>
+        </div>
 
-    showToast(
-      'NEO-N•BANK',
-      `💰 Нова транзакція: +${amountFormatted} ₴`,
-      'push',
-      {
-        subtitle: titleInput || 'Надходження у готівковий гаманець',
-        category: categoryInput,
-        balance: `Готівковий залишок: ${newBalFormatted} ₴`,
-        iconType: 'income'
-      }
-    );
+        <div class="title">Квитанція № ${tx.id}</div>
+        <div class="subtitle">Дата та час проведення: ${tx.date}</div>
 
-    setIsIncomeOpen(false);
-    setAmountInput('');
-    setTitleInput('');
-    setDescInput('');
-  };
+        <table>
+          <tr><td class="label">Платник:</td><td class="value">${profile.fullName}</td></tr>
+          <tr><td class="label">РНОКПП (ІПН) Платника:</td><td class="value">${profile.taxId}</td></tr>
+          <tr><td class="label">Рахунок Платника (IBAN):</td><td class="value">${profile.iban}</td></tr>
+          <tr><td class="label">Назва операції:</td><td class="value">${tx.title}</td></tr>
+          <tr><td class="label">Категорія транзакції:</td><td class="value">${tx.category}</td></tr>
+          <tr><td class="label">Місце проведення:</td><td class="value">${tx.location}</td></tr>
+          <tr><td class="label">Призначення платежу:</td><td class="value">${tx.details}</td></tr>
+          <tr><td class="label">Статус платежу:</td><td class="value" style="color: #059669;">ПРОВЕДЕНО (SUCCESS)</td></tr>
+          <tr class="amount-row">
+            <td class="label">Загальна сума:</td>
+            <td class="value">${Math.abs(tx.amount).toFixed(2)} UAH</td>
+          </tr>
+        </table>
 
-  // ATM Exchange submit
-  const handleAtmAction = (type: 'withdraw' | 'deposit') => {
-    const parsedAmount = Math.round(parseFloat(amountInput.replace(',', '.')) * 100);
-    if (!parsedAmount || parsedAmount <= 0) {
-      showToast('НЕ-ОБАНК', 'Введіть коректну суму', 'error');
-      return;
-    }
+        ${isIBAN ? `
+          <div class="notice-box">
+            <b>Увага:</b> Зарахування на рахунок/картку одержувача залежить від банку отримувача: від термінового/моментального до 3 робочих днів (72 години).
+          </div>
+        ` : ''}
 
-    if (type === 'withdraw') {
-      const ok = atmWithdrawal(parsedAmount);
-      if (!ok) {
-        showToast('НЕ-ОБАНК', 'Недостатньо коштів на картці НЕ-ОБАНК', 'error');
-        return;
-      }
-      const amountFormatted = (parsedAmount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const cardBalFormatted = ((user.balance - parsedAmount) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      showToast(
-        'NEO-N•BANK',
-        `🏧 Зняття в банкоматі: -${amountFormatted} ₴`,
-        'push',
-        {
-          subtitle: 'Знято готівку з картки у гаманець',
-          balance: `Баланс картки: ${cardBalFormatted} ₴`,
-          iconType: 'atm'
-        }
-      );
-    } else {
-      const ok = depositCashToCard(parsedAmount);
-      if (!ok) {
-        showToast('НЕ-ОБАНК', 'Недостатньо готівки у гаманці', 'error');
-        return;
-      }
-      const amountFormatted = (parsedAmount / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const cardBalFormatted = ((user.balance + parsedAmount) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      showToast(
-        'NEO-N•BANK',
-        `📲 Поповнення картки: +${amountFormatted} ₴`,
-        'push',
-        {
-          subtitle: 'Поповнено картку через термінал',
-          balance: `Баланс картки: ${cardBalFormatted} ₴`,
-          iconType: 'card'
-        }
-      );
-    }
-    setIsAtmOpen(false);
-    setAmountInput('');
-  };
+        <div class="kep-seal">
+          <div>
+            <b>Електронний цифровий підпис (ЕЦП / КЕП):</b><br>
+            Підписувач: АТ «НЕО БАНК АПП» (Автоматизована банківська система)<br>
+            Сертифікат КЕП: № 4F82A0938529964839833978<br>
+            Хеш-код SHA256: ${Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)}
+          </div>
+          <div style="text-align: center;">
+            <div class="signature">Sokolov A.S.</div>
+            <div style="font-size: 9px; color: #555; margin-top: 2px;">Підтверджено ЕЦП</div>
+          </div>
+        </div>
 
-  // Envelope transfer submit
-  const handleEnvelopeActionSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEnvelope) return;
-    const parsedAmount = Math.round(parseFloat(amountInput.replace(',', '.')) * 100);
-    if (!parsedAmount || parsedAmount <= 0) {
-      showToast('НЕ-ОБАНК', 'Введіть суму', 'error');
-      return;
-    }
-
-    if (envelopeActionType === 'deposit') {
-      const ok = transferToEnvelope(selectedEnvelope.id, parsedAmount);
-      if (!ok) {
-        showToast('НЕ-ОБАНК', 'Недостатньо готівки в гаманці', 'error');
-        return;
-      }
-      showToast('Конверти', `Перераховано ${(parsedAmount / 100).toFixed(2)} ₴ в конверт "${selectedEnvelope.name}"`, 'success');
-    } else {
-      const ok = withdrawFromEnvelope(selectedEnvelope.id, parsedAmount);
-      if (!ok) {
-        showToast('Конверти', 'Недостатньо коштів у конверті', 'error');
-        return;
-      }
-      showToast('Конверти', `Вилучено ${(parsedAmount / 100).toFixed(2)} ₴ з конверта в готівковий гаманець`, 'success');
-    }
-    setIsEnvelopeModalOpen(false);
-    setSelectedEnvelope(null);
-    setAmountInput('');
-  };
-
-  // Create new Envelope
-  const handleCreateEnvelope = (e: React.FormEvent) => {
-    e.preventDefault();
-    const target = Math.round(parseFloat(newEnvTarget.replace(',', '.')) * 100);
-    if (!newEnvName || !target || target <= 0) {
-      showToast('НЕ-ОБАНК', 'Вкажіть назву та цільову суму', 'error');
-      return;
-    }
-    addEnvelope({
-      name: newEnvName,
-      targetAmount: target,
-      category: newEnvCat,
-      iconName: 'Vault'
-    });
-    showToast('Конверти', `Створено новий конверт "${newEnvName}"`, 'success');
-    setIsNewEnvelopeOpen(false);
-    setNewEnvName('');
-    setNewEnvTarget('');
-  };
-
-  // Deposit to Jar submit
-  const handleDepositJarSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsedAmount = Math.round(parseFloat(amountInput.replace(',', '.')) * 100);
-    if (!parsedAmount || parsedAmount <= 0) {
-      showToast('Скарбничка', 'Введіть суму поповнення', 'error');
-      return;
-    }
-    depositToJar(parsedAmount);
-    showToast('Скарбничка', `Поповнено Скарбничку на ${(parsedAmount / 100).toFixed(2)} ₴`, 'success');
-    setIsJarOpen(false);
-    setAmountInput('');
+        <div class="footer">
+          Квитанція сформована автоматично системою NE•OBANK. Служба підтримки: 0 800 300 800 | artemsokoloff@ukr.net
+        </div>
+        <script>window.print();</script>
+      </body>
+      </html>
+    `;
+    receiptWindow.document.write(htmlContent);
+    receiptWindow.document.close();
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-[#06080C] text-white font-sans antialiased selection:bg-cyan-500 selection:text-black">
-      
-      {/* Toast Overlay - Push Notification Simulator */}
-      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
-        {toasts.map(toast => (
-          <div 
-            key={toast.id}
-            className={cn(
-              "p-4 rounded-3xl shadow-2xl border backdrop-blur-2xl pointer-events-auto flex flex-col transition-all animate-in slide-in-from-top-4 duration-300",
-              toast.type === 'push' 
-                ? "bg-[#0C1322]/95 border-cyan-400/60 text-white shadow-cyan-500/25 ring-1 ring-cyan-400/30"
-                : toast.type === 'success' 
-                  ? "bg-teal-950/95 border-teal-400/40 text-white shadow-teal-500/10"
-                  : toast.type === 'error' 
-                    ? "bg-rose-950/95 border-rose-400/40 text-white shadow-rose-500/10"
-                    : "bg-slate-900/95 border-slate-700 text-white"
-            )}
-          >
-            {toast.type === 'push' ? (
-              <div className="space-y-2.5">
-                {/* Push Notification Header */}
-                <div className="flex items-center justify-between border-b border-cyan-500/20 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-cyan-400 to-teal-300 flex items-center justify-center font-black text-black text-[10px] shadow-sm">
-                      N
-                    </div>
-                    <span className="text-[11px] font-extrabold text-cyan-300 tracking-wider uppercase">Ne•OBank App</span>
-                    <span className="text-[10px] text-cyan-200/50 font-medium">• {toast.time || 'зараз'}</span>
-                  </div>
-                  <button 
-                    onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                    className="p-1 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Push Notification Content */}
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 pr-2">
-                    <div className="text-xs font-black text-white tracking-tight flex items-center space-x-1.5">
-                      <span>{toast.message}</span>
-                    </div>
-                    {toast.subtitle && (
-                      <p className="text-[11px] text-cyan-100/90 font-medium leading-snug">{toast.subtitle}</p>
-                    )}
-                    {toast.balance && (
-                      <p className="text-[10px] text-teal-300 font-mono font-semibold pt-0.5">{toast.balance}</p>
-                    )}
-                  </div>
-                  <div className="p-2 rounded-2xl bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 shrink-0 shadow-inner">
-                    <Bell className="w-4 h-4 animate-pulse" />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start justify-between space-x-3">
-                <div className="flex items-start space-x-3">
-                  <div className="p-1.5 rounded-xl bg-cyan-500/20 text-cyan-300 shrink-0 mt-0.5">
-                    <Bell className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-cyan-300">{toast.title}</h4>
-                    <p className="text-xs text-white/90 mt-0.5 leading-snug">{toast.message}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                  className="text-white/40 hover:text-white transition"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Main Container simulating smartphone display */}
-      <div className="w-full max-w-md h-[100dvh] md:h-[932px] md:max-h-[932px] bg-[#0A0D12] md:rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col border border-violet-500/20">
+    <div className="min-h-screen bg-[#070709] text-white font-sans flex justify-center selection:bg-[#00F5D4] selection:text-black">
+      <div className="w-full max-w-[440px] min-h-screen bg-[#0E0E12] flex flex-col justify-between relative shadow-2xl overflow-x-hidden border-x border-white/5 pb-20">
         
-        {/* Dynamic Island Header */}
-        <div className="bg-[#0A0D12] pt-3 px-5 pb-2.5 flex justify-between items-center z-40 shrink-0 border-b border-violet-500/15">
-          <div className="flex items-center space-x-2.5">
-            <img src={user.avatarUrl || logoImg} alt="Ne•OBank App" className="w-8 h-8 rounded-xl object-cover border border-violet-400/50 shadow-md shadow-violet-500/30 animate-fade-in" />
-            <div>
-              <span className="font-extrabold tracking-tight text-sm text-white">Ne•<span className="text-violet-400 font-black">OBank App</span></span>
-              <span className="text-[10px] text-violet-200/60 block leading-tight font-medium">Violet Edition</span>
-            </div>
+        {/* Тост-сповіщення */}
+        {notification && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#00F5D4] text-black font-bold px-5 py-2.5 rounded-full text-xs shadow-2xl border border-white/30 flex items-center gap-2 animate-bounce">
+            <Sparkles size={14} />
+            {notification}
           </div>
+        )}
 
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => {
-                showToast(
-                  'Ne-OBank',
-                  '💸 Нова транзакція: -350.00 ₴',
-                  'push',
-                  {
-                    subtitle: 'Продукти & Супермаркети • Сільпо',
-                    balance: `Готівковий залишок: ${(user.cashBalance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} ₴`,
-                    iconType: 'expense'
-                  }
-                );
-              }}
-              className="p-1.5 rounded-full bg-violet-500/15 hover:bg-violet-500/30 text-violet-300 transition-colors border border-violet-400/30"
-              title="Тестове пуш-повідомлення"
-            >
-              <Bell className="w-4 h-4 animate-pulse text-violet-300" />
-            </button>
-
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/30 text-violet-300">
-              <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse"></span>
-              <span className="text-[10px] font-bold tracking-wider uppercase">Live Sync</span>
-            </div>
-            <button 
-              onClick={() => setAuthScreen('app_start')}
-              className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-violet-300 transition-colors"
-              title="Заблокувати"
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 no-scrollbar pb-24">
-
-          {/* TAB 1: MAIN WALLET & CARD */}
-          {activeTab === 'main' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              
-              {/* Total Wealth Hero Card */}
-              <div className="relative rounded-3xl bg-gradient-to-br from-[#0F172A] to-[#020617] p-6 border border-zinc-800 shadow-2xl overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
-
-                <div className="flex justify-between items-center relative z-10">
-                  <div>
-                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">Загальний Капітал</span>
-                    <div className="text-3xl font-black tracking-tight text-white flex items-baseline mt-2 font-mono">
-                      {showBalance ? displayTotalWealth : '••••••'} <span className="text-xl font-bold text-violet-400 ml-1.5 font-sans">₴</span>
-                    </div>
-                  </div>
-                  
-                  <button 
-                    onClick={() => setShowBalance(!showBalance)}
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 border border-white/5 transition-colors"
-                    title={showBalance ? "Сховати баланс" : "Показати баланс"}
-                  >
-                    {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Quick Actions Buttons - Exclusive and Non-Cash */}
-              <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={() => setIsTransfersOpen(true)}
-                  className="flex items-center justify-between p-4 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/10 active:scale-98 transition-all group text-left"
-                >
-                  <div className="flex items-center space-x-3 font-sans">
-                    <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center text-violet-400">
-                      <ArrowRightLeft className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-white block">Платежі та Перекази</span>
-                      <span className="text-[10px] text-zinc-500 font-medium">Картка, IBAN, Комуналка</span>
-                    </div>
-                  </div>
-                </button>
-
-                <button 
-                  onClick={() => setIsCashbackOpen(true)}
-                  className="flex items-center justify-between p-4 rounded-2xl bg-[#121721] hover:bg-[#1A2130] border border-violet-500/10 active:scale-98 transition-all group text-left"
-                >
-                  <div className="flex items-center space-x-3 font-sans">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-400">
-                      <Gift className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-white block">Накопичений Кешбек</span>
-                      <span className="text-[10px] text-zinc-500 font-medium">Керувати накопиченнями</span>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Turquoise Platinum Card Component */}
-              <TurquoiseCard 
-                cardNumber={user.cardNumber}
-                cardHolder={user.cardHolder}
-                cvv={user.cvv}
-                expiryDate={user.expiryDate}
-                iban={user.iban}
-                balance={user.balance}
-                creditLimit={user.creditLimit}
-                isFrozen={user.isCardFrozen}
-                showBalance={showBalance}
-                onToggleFreeze={toggleCardFreeze}
-                onToggleShowBalance={() => setShowBalance(!showBalance)}
-                onOpenEditBalance={() => setIsQuickBalanceEditOpen(true)}
-                showToast={showToast}
-                secretModeEnabled={secretModeEnabled}
+        {/* --- ШАПКА --- */}
+        <header className="p-4 pt-6 flex items-center justify-between border-b border-white/5 bg-[#0E0E12]/90 backdrop-blur-xl sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            {/* Аватарка користувача (не замінює логотип дизайну сайту) */}
+            <div className="relative group cursor-pointer">
+              <img 
+                src={profile.avatarUrl} 
+                alt="Соколов Артем" 
+                className="w-10 h-10 rounded-full object-cover border-2 border-[#00F5D4] hover:scale-105 transition shadow-md"
+                onClick={() => setActiveTab('settings')}
               />
+            </div>
+            <div>
+              <div className="text-[10px] text-[#00F5D4] font-bold uppercase tracking-wider">NE•OBANK VIP</div>
+              <div className="text-xs font-black text-white tracking-wide">{profile.fullName.split(' ')[1]} {profile.fullName.split(' ')[0]}</div>
+            </div>
+          </div>
 
-              {/* Cashback Banner Widget */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-cyan-500/20 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
-                    <Gift className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setActiveTab('support')}
+              className={`p-2 rounded-full transition ${activeTab === 'support' ? 'bg-[#00F5D4] text-black' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
+              title="Підтримка"
+            >
+              <MessageSquare size={18} />
+            </button>
+            <button 
+              onClick={() => setHideBalances(!hideBalances)} 
+              className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-300 transition"
+            >
+              {hideBalances ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+            <button 
+              onClick={() => setActiveTab('settings')} 
+              className={`p-2 rounded-full transition ${activeTab === 'settings' ? 'bg-[#00F5D4] text-black' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
+            >
+              <Settings size={18} />
+            </button>
+          </div>
+        </header>
+
+        {/* --- ОСНОВНИЙ КОНТЕНТ --- */}
+        <main className="p-4 space-y-6 flex-1">
+
+          {/* TAB 1: ГОЛОВНИЙ ЕКРАН */}
+          {activeTab === 'home' && (
+            <div className="space-y-6 animate-fadeIn">
+              
+              {/* Компактне відображення балансу (без множинних рахунків) */}
+              <div className="bg-gradient-to-br from-[#1A1A22] via-[#121218] to-[#0A0A0E] p-6 rounded-3xl border border-white/10 relative overflow-hidden shadow-2xl">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <span className="text-[10px] font-black tracking-widest text-[#00F5D4] uppercase">ОСНОВНИЙ РАХУНОК</span>
+                    <h2 className="text-xs text-gray-400 font-mono mt-0.5">ARTEM SOKOLOV</h2>
+                  </div>
+                  <CreditCard className="text-gray-400" size={26} />
+                </div>
+
+                <div className="space-y-1 mb-6">
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wider">Баланс картки</div>
+                  <div className="text-3xl font-black text-white tracking-tight font-mono">
+                    {hideBalances ? '••••••' : `${cardBalance.toLocaleString('uk-UA', { minimumFractionDigits: 2 })} ₴`}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-xs font-mono text-gray-300 pt-3 border-t border-white/5">
+                  <span>{hideBalances ? '•••• •••• •••• ••••' : cardNumber}</span>
+                  <span className="text-[#00F5D4] font-bold">{cardExpiry}</span>
+                </div>
+              </div>
+
+              {/* КЕШБЕК */}
+              <div className="bg-[#14141A] p-4 rounded-3xl border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-[#00F5D4]/10 text-[#00F5D4] rounded-2xl">
+                    <Sparkles size={20} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">Кешбек Ne•OBank App</h4>
-                    <p className="text-[11px] text-cyan-300 font-bold">
-                      {(user.cashbackBalance / 100).toFixed(2)} ₴ <span className="text-[10px] text-white/50 font-normal">• 2 категорії активні</span>
-                    </p>
+                    <div className="text-xs font-bold text-white">Кешбек NE•OBANK</div>
+                    <div className="text-[10px] text-gray-400">Накопичено за місяць</div>
                   </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-black text-[#00F5D4] font-mono">{cashbackBalance.toFixed(2)} ₴</div>
+                  <button 
+                    onClick={() => {
+                      setCardBalance(prev => prev + cashbackBalance);
+                      setCashbackBalance(0);
+                      showToast("Кешбек успішно перераховано!");
+                    }}
+                    disabled={cashbackBalance <= 0}
+                    className="text-[10px] bg-[#00F5D4] text-black font-bold px-2.5 py-1 rounded-lg mt-1 hover:scale-105 transition disabled:opacity-30"
+                  >
+                    Вивести
+                  </button>
+                </div>
+              </div>
+
+              {/* ІСТОРІЯ ТРАНЗАКЦІЙ */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-xs text-gray-400 font-bold uppercase tracking-wider">
+                  <span>Останні транзакції</span>
+                  <span className="text-[10px] text-[#00F5D4] font-mono">{transactions.length} записів</span>
+                </div>
+
+                <div className="space-y-2">
+                  {transactions.map((tx) => (
+                    <div 
+                      key={tx.id}
+                      onClick={() => setSelectedTx(tx)}
+                      className="p-3.5 bg-[#14141A] hover:bg-[#1A1A22] rounded-2xl border border-white/5 flex items-center justify-between cursor-pointer transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-2xl ${tx.amount > 0 ? 'bg-[#00F5D4]/10 text-[#00F5D4]' : 'bg-[#FF6B6B]/10 text-[#FF6B6B]'}`}>
+                          {tx.amount > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-white">{tx.title}</div>
+                          <div className="text-[10px] text-gray-400">{tx.category} • {tx.date.split(',')[1]}</div>
+                        </div>
+                      </div>
+                      <div className={`text-xs font-black font-mono ${tx.amount > 0 ? 'text-[#00F5D4]' : 'text-white'}`}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)} ₴
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 2: ПЕРЕКАЗИ ТА ПЛАТЕЖІ */}
+          {activeTab === 'transfers' && (
+            <div className="space-y-5 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-white">Перекази та Платежі</h2>
+                <button 
+                  onClick={() => setShowQRScanner(true)}
+                  className="px-3 py-1.5 bg-[#00F5D4]/10 hover:bg-[#00F5D4]/20 border border-[#00F5D4]/30 rounded-xl text-xs text-[#00F5D4] font-bold flex items-center gap-1.5 transition"
+                >
+                  <Camera size={14} /> QR Сканер
+                </button>
+              </div>
+
+              {/* Способи переказів */}
+              <div className="flex gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar">
+                {[
+                  { id: 'card', label: 'На картку', icon: CreditCard },
+                  { id: 'mobile', label: 'Мобільний', icon: Smartphone },
+                  { id: 'iban', label: 'За IBAN', icon: Landmark },
+                  { id: 'utility', label: 'Комуналка', icon: Building2 }
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setTransferSubTab(tab.id)}
+                      className={`flex-1 min-w-[85px] py-2.5 px-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition ${
+                        transferSubTab === tab.id ? 'bg-[#00F5D4] text-black shadow-lg shadow-[#00F5D4]/20' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <Icon size={14} />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <form onSubmit={handleExecuteTransfer} className="bg-[#14141A] p-5 rounded-3xl border border-white/5 space-y-4">
+                
+                {transferSubTab === 'card' && (
+                  <div className="space-y-3">
+                    <label className="text-xs text-gray-400 font-medium">Номер картки отримувача</label>
+                    <input 
+                      type="text"
+                      placeholder="4441 •••• •••• 1234"
+                      value={transferForm.recipientCard}
+                      onChange={(e) => setTransferForm({...transferForm, recipientCard: e.target.value})}
+                      className="w-full bg-black/60 border border-white/10 rounded-2xl p-3.5 text-xs text-white focus:outline-none focus:border-[#00F5D4] font-mono"
+                      required
+                    />
+                  </div>
+                )}
+
+                {transferSubTab === 'mobile' && (
+                  <div className="space-y-3">
+                    <label className="text-xs text-gray-400 font-medium">Номер телефону (+380)</label>
+                    <input 
+                      type="text"
+                      placeholder="+380 67 123 45 67"
+                      value={transferForm.phone}
+                      onChange={(e) => setTransferForm({...transferForm, phone: e.target.value})}
+                      className="w-full bg-black/60 border border-white/10 rounded-2xl p-3.5 text-xs text-white focus:outline-none focus:border-[#00F5D4] font-mono"
+                      required
+                    />
+                  </div>
+                )}
+
+                {transferSubTab === 'iban' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-gray-400 font-medium">IBAN отримувача</label>
+                      <input 
+                        type="text"
+                        placeholder="UA89300001000002600123456789"
+                        value={transferForm.iban}
+                        onChange={(e) => setTransferForm({...transferForm, iban: e.target.value})}
+                        className="w-full bg-black/60 border border-white/10 rounded-2xl p-3.5 text-xs text-white focus:outline-none focus:border-[#00F5D4] font-mono uppercase"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 font-medium">ПІБ Отримувача</label>
+                      <input 
+                        type="text"
+                        placeholder="Іванов Іван Іванович"
+                        value={transferForm.recipientName}
+                        onChange={(e) => setTransferForm({...transferForm, recipientName: e.target.value})}
+                        className="w-full bg-black/60 border border-white/10 rounded-2xl p-3.5 text-xs text-white focus:outline-none focus:border-[#00F5D4]"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {transferSubTab === 'utility' && (
+                  <div className="space-y-3">
+                    <label className="text-xs text-gray-400 font-medium">Організація / Послуга (м. Київ)</label>
+                    <select 
+                      value={transferForm.utilityOrg}
+                      onChange={(e) => setTransferForm({...transferForm, utilityOrg: e.target.value})}
+                      className="w-full bg-black/60 border border-white/10 rounded-2xl p-3.5 text-xs text-white focus:outline-none focus:border-[#00F5D4]"
+                    >
+                      <option>Київводоканал / Водопостачання</option>
+                      <option>ДТЕК Київські електромережі</option>
+                      <option>YASNO (ТОВ «Київські енергетичні послуги»)</option>
+                      <option>Нафтогаз України</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs text-gray-400 font-medium">Сума платежу (₴)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={transferForm.amount}
+                    onChange={(e) => setTransferForm({...transferForm, amount: e.target.value})}
+                    className="w-full bg-black/60 border border-white/10 rounded-2xl p-3.5 text-sm font-black text-white focus:outline-none focus:border-[#00F5D4] font-mono"
+                    required
+                  />
                 </div>
 
                 <button 
-                  onClick={() => setIsCashbackOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-400/30 transition-colors"
+                  type="submit"
+                  className="w-full py-4 bg-[#00F5D4] hover:bg-[#00D8B8] text-black font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-lg shadow-[#00F5D4]/20"
                 >
-                  Управління
+                  Підтвердити та Сплатити
                 </button>
-              </div>
-
-              {/* Currency Converter */}
-              <CurrencyConverter />
-
-              {/* Transaction History Section */}
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-center px-1">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Історія операцій</h3>
-                  <div className="flex items-center space-x-1.5">
-                    <button
-                      onClick={handleExportKeep}
-                      disabled={isExporting}
-                      className="px-2 py-1 bg-cyan-500/15 hover:bg-cyan-500/30 transition text-[#FFBB00] rounded-lg flex items-center space-x-1 text-[10px] border border-cyan-500/20"
-                    >
-                      <FileText className="w-3 h-3" />
-                      <span>{isExporting ? '...' : 'В Keep'}</span>
-                    </button>
-                    <button
-                      onClick={handleExportDocs}
-                      disabled={isExporting}
-                      className="px-2 py-1 bg-cyan-500/15 hover:bg-cyan-500/30 transition text-cyan-300 rounded-lg flex items-center space-x-1 text-[10px] border border-cyan-500/20"
-                    >
-                      <FileText className="w-3 h-3" />
-                      <span>{isExporting ? '...' : 'В Docs'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Search Input Field */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-cyan-400/60">
-                    <Search className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Пошук за назвою, категорією або датою..."
-                    className="w-full pl-9 pr-8 py-2.5 bg-[#121721] border border-cyan-500/20 rounded-2xl text-xs text-white placeholder-cyan-200/40 focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/30 transition-all shadow-inner"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-cyan-200/50 hover:text-white transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {transactions.length === 0 ? (
-                  <div className="p-8 text-center bg-[#121721] rounded-3xl border border-cyan-500/15">
-                    <Receipt className="w-8 h-8 text-cyan-400/30 mx-auto mb-2" />
-                    <p className="text-xs text-white/50">Транзакцій ще немає</p>
-                  </div>
-                ) : Object.keys(groupedTransactions).length === 0 ? (
-                  <div className="p-8 text-center bg-[#121721] rounded-3xl border border-cyan-500/15 space-y-2">
-                    <Search className="w-8 h-8 text-cyan-400/30 mx-auto" />
-                    <p className="text-xs font-bold text-white/80">Нічого не знайдено</p>
-                    <p className="text-[11px] text-cyan-200/50">За запитом «{searchQuery}» результатів немає</p>
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="px-3.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/30 text-cyan-300 text-xs font-bold transition"
-                    >
-                      Скинути пошук
-                    </button>
-                  </div>
-                ) : (
-                  Object.entries(groupedTransactions).map(([date, txs]) => (
-                    <div key={date} className="space-y-2">
-                      <span className="text-[10px] font-bold text-cyan-300/70 uppercase tracking-widest px-1 block">{date}</span>
-                      <div className="bg-[#121721] rounded-3xl border border-cyan-500/15 divide-y divide-cyan-500/10 overflow-hidden">
-                        {txs.map(tx => (
-                          <div 
-                            key={tx.id}
-                            onClick={() => setSelectedTx(tx)}
-                            className="p-3.5 hover:bg-white/[0.03] transition flex items-center justify-between cursor-pointer"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={cn(
-                                "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border",
-                                tx.type === 'income' 
-                                  ? "bg-teal-500/15 text-teal-400 border-teal-500/30" 
-                                  : "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
-                              )}>
-                                {tx.isCash ? <Wallet className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
-                              </div>
-                              <div>
-                                <h4 className="text-xs font-bold text-white line-clamp-1">{tx.title}</h4>
-                                <p className="text-[10px] text-cyan-200/60 mt-0.5">
-                                  {tx.category} • {format(new Date(tx.date), 'HH:mm')}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <span className={cn(
-                                "text-xs font-black block font-mono",
-                                tx.type === 'income' ? "text-teal-400" : "text-white"
-                              )}>
-                                {tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toFixed(2)} ₴
-                              </span>
-                              <span className="text-[9px] text-cyan-300/50 block font-mono mt-0.5">
-                                {tx.receiptNumber}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
+              </form>
             </div>
           )}
 
+          {/* TAB 3: АКЦІЇ, КРЕДИТИ ТА ВКЛАДИ (Різноманітний дизайн) */}
+          {activeTab === 'offers' && (
+            <div className="space-y-5 animate-fadeIn">
+              <h2 className="text-base font-bold text-white">Вигідні Пропозиції та Вклади</h2>
 
-
-          {/* TAB 3: TRANSFERS & PAYMENTS */}
-          {activeTab === 'transfers' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="px-1">
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Перекази & Платежі</h2>
-                <p className="text-[11px] text-cyan-200/60">Швидкі операції за один клік</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setIsTransfersOpen(true)}
-                  className="p-4 rounded-3xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/20 text-left space-y-2 transition active:scale-95"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5" />
-                  </div>
+              {/* Депозит */}
+              <div className="bg-gradient-to-br from-emerald-900/40 via-[#14141A] to-[#0A0A0E] p-5 rounded-3xl border border-emerald-500/30 space-y-3 relative overflow-hidden shadow-xl">
+                <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="text-xs font-bold text-white">На картку</h4>
-                    <p className="text-[10px] text-cyan-300/60">Переказ P2P за 16 цифрами</p>
+                    <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Вклад "Максимум"</span>
+                    <h3 className="text-xl font-black text-white mt-2">До 18.5% річних</h3>
                   </div>
-                </button>
-
-                <button
-                  onClick={() => setIsTransfersOpen(true)}
-                  className="p-4 rounded-3xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/20 text-left space-y-2 transition active:scale-95"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-300 flex items-center justify-center">
-                    <Smartphone className="w-5 h-5" />
+                  <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl">
+                    <TrendingUp size={24} />
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Мобільний</h4>
-                    <p className="text-[10px] text-teal-300/60">Поповнення зв'язку</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setIsTransfersOpen(true)}
-                  className="p-4 rounded-3xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/20 text-left space-y-2 transition active:scale-95"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-300 flex items-center justify-center">
-                    <Landmark className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">За IBAN</h4>
-                    <p className="text-[10px] text-purple-300/60">Оплата за реквізитами</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setIsTransfersOpen(true)}
-                  className="p-4 rounded-3xl bg-[#121721] hover:bg-[#1A2130] border border-cyan-500/20 text-left space-y-2 transition active:scale-95"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center">
-                    <Receipt className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Комуналка</h4>
-                    <p className="text-[10px] text-amber-300/60">Світло, вода, газ, інтернет</p>
-                  </div>
-                </button>
-              </div>
-
-              {/* Currency rates card */}
-              <CurrencyConverter />
-            </div>
-          )}
-
-          {/* TAB 4: ANALYTICS */}
-          {activeTab === 'analytics' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="px-1">
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Аналітика Витрат</h2>
-                <p className="text-[11px] text-cyan-200/60">Структура ваших платежів</p>
-              </div>
-
-              <div className="p-5 rounded-3xl bg-[#121721] border border-cyan-500/20 space-y-4">
-                <div className="flex justify-between items-center border-b border-cyan-500/15 pb-3">
-                  <span className="text-xs font-bold text-white">Розподіл за категоріями</span>
-                  <span className="text-[10px] text-cyan-300 font-mono">Цей місяць</span>
                 </div>
+                <p className="text-xs text-gray-300">
+                  Виплати щомісяця на ваш рахунок. Можливість дострокового зняття без втрати відсотків.
+                </p>
+                <button 
+                  onClick={() => showToast("Заявку на відкриття вкладу прийнято!")}
+                  className="w-full py-3.5 bg-emerald-400 hover:bg-emerald-300 text-black font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-400/20"
+                >
+                  Відкрити депозит
+                </button>
+              </div>
 
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-white">Продукти & Супермаркети</span>
-                      <span className="text-cyan-300">45% • 3,500 ₴</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-black/50 overflow-hidden border border-cyan-500/20">
-                      <div className="h-full bg-cyan-400 w-[45%]"></div>
-                    </div>
+              {/* Кредитна пропозиція */}
+              <div className="bg-gradient-to-br from-[#FF6B6B]/20 via-[#14141A] to-[#0A0A0E] p-5 rounded-3xl border border-[#FF6B6B]/30 space-y-3 relative overflow-hidden shadow-xl">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[9px] bg-[#FF6B6B]/20 text-[#FF6B6B] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Персональний Кредит</span>
+                    <h3 className="text-xl font-black text-white mt-2">До 250 000 ₴ під 0.01%</h3>
                   </div>
+                  <div className="p-3 bg-[#FF6B6B]/10 text-[#FF6B6B] rounded-2xl">
+                    <Zap size={24} />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-300">
+                  Пільговий період до 62 днів на будь-які покупки та миттєві перекази без комісій.
+                </p>
+                <button 
+                  onClick={() => showToast("Кредитний ліміт схвалено миттєво!")}
+                  className="w-full py-3.5 bg-[#FF6B6B] hover:bg-[#D93838] text-white font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-lg shadow-[#FF6B6B]/20"
+                >
+                  Отримати кошти
+                </button>
+              </div>
 
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-white">Пальне & Авто</span>
-                      <span className="text-teal-400">30% • 2,000 ₴</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-black/50 overflow-hidden border border-cyan-500/20">
-                      <div className="h-full bg-teal-400 w-[30%]"></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-white">Кафе & Ресторани</span>
-                      <span className="text-amber-400">15% • 1,200 ₴</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-black/50 overflow-hidden border border-cyan-500/20">
-                      <div className="h-full bg-amber-400 w-[15%]"></div>
-                    </div>
-                  </div>
+              {/* Акція Кешбек */}
+              <div className="bg-[#14141A] p-4 rounded-3xl border border-white/5 flex items-center gap-4 shadow-lg">
+                <div className="p-3 bg-purple-500/20 text-purple-400 rounded-2xl">
+                  <Gift size={24} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Акція "Запроси друга"</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">Отримуйте по 150 ₴ за кожного приведеного друга до банку</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 5: SETTINGS & SECURITY */}
+          {/* TAB 4: ЧАТ ПІДТРИМКИ */}
+          {activeTab === 'support' && (
+            <div className="space-y-4 animate-fadeIn flex flex-col h-[70vh]">
+              <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+                <div className="w-10 h-10 bg-[#00F5D4]/20 border border-[#00F5D4] rounded-full flex items-center justify-center text-[#00F5D4]">
+                  <HelpCircle size={20} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white">Підтримка NE•OBANK</h2>
+                  <div className="text-[10px] text-green-400 flex items-center gap-1 font-mono">
+                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" /> Оператор на зв'язку
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 space-y-3 overflow-y-auto pr-1 no-scrollbar">
+                {messages.map((msg) => (
+                  <div 
+                    key={msg.id} 
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className={`max-w-[80%] p-3.5 rounded-2xl text-xs ${
+                      msg.sender === 'user' 
+                        ? 'bg-[#00F5D4] text-black font-semibold rounded-br-none' 
+                        : 'bg-[#14141A] text-white border border-white/10 rounded-bl-none'
+                    }`}>
+                      {msg.text}
+                    </div>
+                    <span className="text-[9px] text-gray-500 mt-1 font-mono">{msg.time}</span>
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={handleSendMessage} className="flex gap-2 pt-2 border-t border-white/5">
+                <input 
+                  type="text" 
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Напишіть ваше запитання..."
+                  className="flex-1 bg-black/60 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#00F5D4]"
+                />
+                <button 
+                  type="submit"
+                  className="p-3 bg-[#00F5D4] text-black font-bold rounded-2xl hover:bg-[#00D8B8] transition"
+                >
+                  <Send size={16} />
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* TAB 5: ПРОФІЛЬ ТА НАЛАШТУВАННЯ */}
           {activeTab === 'settings' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="px-1">
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Налаштування & Безпека</h2>
-                <p className="text-[11px] text-violet-200/60">Керування профілем та синхронізацією</p>
-              </div>
+            <div className="space-y-5 animate-fadeIn">
+              <h2 className="text-base font-bold text-white">Профіль користувача</h2>
 
-              {/* Account profile card */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
-                <div className="flex items-center justify-between border-b border-violet-500/15 pb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative group cursor-pointer">
-                      <img 
-                        src={user.avatarUrl || logoImg} 
-                        alt="Profile Avatar" 
-                        onClick={() => document.getElementById('avatar-file-input')?.click()}
-                        className="w-12 h-12 rounded-2xl object-cover border border-violet-400/40 shadow-md hover:brightness-75 hover:scale-105 transition duration-200" 
-                        title="Змінити аватар"
-                      />
-                      <input 
-                        id="avatar-file-input"
-                        type="file" 
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 2 * 1024 * 1024) {
-                              showToast('Помилка', 'Розмір фото не має перевищувати 2MB', 'error');
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              updateUser({ avatarUrl: reader.result as string });
-                              showToast('NEO•N•BANK', 'Фото профілю оновлено!', 'success');
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="text-[8px] text-white font-bold uppercase">Змінити</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white">{user.name}</h4>
-                      <p className="text-[10px] text-violet-300 font-mono mt-0.5">{user.iban}</p>
-                      <p className="text-[10px] text-violet-200/60 font-mono">{user.phone} • {user.email}</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setIsEditingProfile(!isEditingProfile);
-                      setProfileName(user.name);
-                      setProfilePhone(user.phone || '');
-                      setProfileEmail(user.email || '');
-                      setProfileIban(user.iban);
-                      setProfileCardHolder(user.cardHolder);
-                      setProfileCreditLimit((user.creditLimit / 100).toString());
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/30 text-violet-300 font-bold text-xs transition"
-                  >
-                    {isEditingProfile ? 'Скасувати' : 'Змінити дані'}
-                  </button>
-                </div>
-
-                {isEditingProfile && (
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const parsedLimit = parseFloat(profileCreditLimit);
-                      const creditNum = isNaN(parsedLimit) ? user.creditLimit : Math.round(parsedLimit * 100);
-                      updateUser({
-                        name: profileName.trim(),
-                        phone: profilePhone.trim(),
-                        email: profileEmail.trim(),
-                        iban: profileIban.trim(),
-                        cardHolder: profileCardHolder.trim().toUpperCase(),
-                        creditLimit: creditNum
-                      });
-                      setIsEditingProfile(false);
-                      showToast('Ne-OBank', 'Персональні дані успішно оновлено!', 'success');
-                    }}
-                    className="space-y-3 pt-2 animate-in fade-in duration-200"
-                  >
-                    <div>
-                      <label className="text-[10px] text-violet-200/70 font-medium block mb-1">ПІБ Власника</label>
-                      <input 
-                        type="text" required
-                        value={profileName} onChange={(e) => setProfileName(e.target.value)}
-                        className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-400"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Телефон</label>
-                        <input 
-                          type="text"
-                          value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)}
-                          className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Email</label>
-                        <input 
-                          type="email"
-                          value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)}
-                          className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-400"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Номер IBAN</label>
-                      <input 
-                        type="text" required
-                        value={profileIban} onChange={(e) => setProfileIban(e.target.value)}
-                        className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-1.5 text-xs font-mono text-violet-300 focus:outline-none focus:border-violet-400"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Им'я на картці</label>
-                        <input 
-                          type="text" required
-                          value={profileCardHolder} onChange={(e) => setProfileCardHolder(e.target.value)}
-                          className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-1.5 text-xs text-white uppercase focus:outline-none focus:border-violet-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Кредитний ліміт (₴)</label>
-                        <input 
-                          type="number" step="100" required
-                          value={profileCreditLimit} onChange={(e) => setProfileCreditLimit(e.target.value)}
-                          className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-1.5 text-xs text-violet-300 font-bold focus:outline-none focus:border-violet-400"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 transition"
-                    >
-                      Зберегти зміни профілю
-                    </button>
-                  </form>
-                )}
-              </div>
-
-              {/* 1-Click Global Balance Management Card */}
-              <div className="p-4 rounded-3xl bg-gradient-to-r from-[#1A103C] to-[#0D1427] border border-violet-500/30 space-y-3 shadow-xl">
-                <div className="flex justify-between items-center border-b border-violet-500/20 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-2 rounded-xl bg-violet-500/20 text-violet-300">
-                      <Save className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Глобальне Управління Балансом</h4>
-                      <p className="text-[10px] text-violet-300/70">Функція "В один клік" • UAH (₴) Only</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 rounded-2xl bg-black/40 border border-violet-500/20">
-                    <span className="text-[10px] text-violet-300/70 block">Баланс картки</span>
-                    <span className="text-xs font-bold font-mono text-white mt-0.5 block">
-                      {formatUAH(user.balance)}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-2xl bg-black/40 border border-violet-500/20">
-                    <span className="text-[10px] text-violet-300/70 block">Кредитний ліміт</span>
-                    <span className="text-xs font-bold font-mono text-violet-300 mt-0.5 block">
-                      {formatUAH(user.creditLimit)}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setIsQuickBalanceEditOpen(true)}
-                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-extrabold text-xs shadow-lg shadow-violet-500/25 flex items-center justify-center space-x-2 transition"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Відкрити вікно зміни балансу (1-Click)</span>
-                </button>
-              </div>
-
-              {/* Google Auth & Firestore Card */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
-                <div className="flex justify-between items-center">
+              <div className="bg-[#14141A] p-5 rounded-3xl border border-white/5 space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+                  <img src={profile.avatarUrl} alt="Соколов Артем" className="w-14 h-14 rounded-full object-cover border-2 border-[#00F5D4]" />
                   <div>
-                    <h4 className="text-xs font-bold text-white">Хмарна Синхронізація Firebase</h4>
-                    <p className="text-[10px] text-violet-300/70">Firestore Database Integration</p>
+                    <div className="text-sm font-bold text-white">{profile.fullName}</div>
+                    <div className="text-xs text-gray-400 font-mono">{profile.email}</div>
                   </div>
-                  <span className={cn(
-                    "px-2.5 py-1 rounded-full text-[10px] font-bold border",
-                    googleToken ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : "bg-white/10 text-white/50 border-white/10"
-                  )}>
-                    {googleToken ? 'Підключено' : 'Офлайн'}
-                  </span>
                 </div>
 
-                {!googleToken ? (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await googleSignIn();
-                        if (res) {
-                          setGoogleToken(res.accessToken);
-                          showToast('Firebase', 'Успішно увійшли через Google Account', 'success');
-                        }
-                      } catch (e: any) {
-                        if (
-                          e?.code !== 'auth/popup-closed-by-user' &&
-                          e?.code !== 'auth/cancelled-popup-request' &&
-                          !e?.message?.includes('popup-closed-by-user')
-                        ) {
-                          showToast('Firebase', 'Помилка авторизації Google', 'error');
-                        }
-                      }
-                    }}
-                    className="w-full py-2.5 rounded-2xl bg-violet-500 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 hover:bg-violet-400 transition"
-                  >
-                    Увійти через Google для Синхронізації
-                  </button>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      await logout();
-                      setGoogleToken(null);
-                      showToast('Firebase', 'Вийшли з акаунту Google', 'info');
-                    }}
-                    className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 font-semibold text-xs transition"
-                  >
-                    Вийти з Google
-                  </button>
-                )}
-              </div>
-
-              {/* 30-Day Backup & Google Docs/Keep/Sheets Sync Reminder Card */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
-                <div className="flex justify-between items-center border-b border-violet-500/15 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <Cloud className="w-4 h-4 text-violet-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Резервне Копіювання (Кожні 30 днів)</h4>
+                <div className="space-y-2 text-xs font-mono">
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-400">Телефон:</span>
+                    <span className="text-white">{profile.phone}</span>
                   </div>
-                  <span className="text-[10px] text-violet-300 font-mono">
-                    {user.lastSyncDate ? format(new Date(user.lastSyncDate), 'dd.MM.yyyy') : 'Немає копії'}
-                  </span>
-                </div>
-
-                <p className="text-[11px] text-violet-200/70">
-                  Автоматичне нагадування кожні 30 днів для збереження записів у Google Sheets, Docs чи Keep.
-                </p>
-
-                <div className="grid grid-cols-3 gap-1.5 pt-1">
-                  <button
-                    onClick={handleExportSheets}
-                    disabled={isExporting}
-                    className="p-2.5 rounded-2xl bg-[#0F172A] hover:bg-[#1E293B] border border-violet-500/30 text-violet-300 font-bold text-xs transition flex items-center justify-center space-x-1"
-                  >
-                    <Table className="w-3.5 h-3.5" />
-                    <span>Sheets</span>
-                  </button>
-
-                  <button
-                    onClick={handleExportDocs}
-                    disabled={isExporting}
-                    className="p-2.5 rounded-2xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/30 text-violet-300 font-bold text-xs transition flex items-center justify-center space-x-1"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Docs</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsSyncReminderOpen(true)}
-                    className="p-2.5 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 font-bold text-xs transition flex items-center justify-center space-x-1"
-                  >
-                    <Cloud className="w-3.5 h-3.5" />
-                    <span>Бекап (30д)</span>
-                  </button>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-400">РНОКПП (ІПН):</span>
+                    <span className="text-white">{profile.taxId}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-400">IBAN рахунку:</span>
+                    <span className="text-white text-[10px] truncate max-w-[180px]">{profile.iban}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-400">Кредитний ліміт:</span>
+                    <span className="text-[#00F5D4]">{profile.creditLimit} ₴</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Google Tasks Integration Card */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
-                <div className="flex justify-between items-center border-b border-violet-500/15 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <CheckSquare className="w-4 h-4 text-violet-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Google Tasks Платіжне Планування</h4>
+              {/* Панель адміністратора */}
+              <button 
+                onClick={() => setShowAdminPanel(!showAdminPanel)}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-purple-500/30 hover:border-purple-500 text-purple-300 rounded-2xl text-xs font-bold flex items-center justify-between transition"
+              >
+                <span className="flex items-center gap-2">
+                  <Shield size={16} /> Панель керування балансом (Адмін)
+                </span>
+                <ChevronRight size={16} className={`transform transition ${showAdminPanel ? 'rotate-90' : ''}`} />
+              </button>
+
+              {showAdminPanel && (
+                <div className="bg-purple-950/30 p-5 rounded-3xl border border-purple-500/40 space-y-4 animate-fadeIn">
+                  <div className="text-xs text-purple-300 font-black uppercase tracking-wider">
+                    Керування балансом картки
                   </div>
-                  <span className="text-[10px] text-violet-300 font-mono">Tasks API</span>
-                </div>
-
-                <p className="text-[11px] text-violet-200/70">
-                  Плануйте фінансові завдання, нагадування про оплату комуналки чи поповнення конвертів у Google Tasks.
-                </p>
-
-                <button
-                  onClick={() => setIsTasksModalOpen(true)}
-                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-400 hover:from-violet-400 hover:to-fuchsia-300 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 flex items-center justify-center space-x-2 transition"
-                >
-                  <CheckSquare className="w-4 h-4 text-white" />
-                  <span>Відкрити Google Tasks Нагадування</span>
-                </button>
-              </div>
-
-              {/* Push Notifications Simulator Card */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
-                <div className="flex items-center justify-between border-b border-violet-500/15 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <Bell className="w-4 h-4 text-violet-400 animate-pulse" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Симулятор Push-сповіщень</h4>
-                  </div>
-                  <span className="text-[10px] text-violet-300 font-mono">Ne-OBank Push</span>
-                </div>
-                <p className="text-[11px] text-violet-200/70">
-                  Тестування push-сповіщень про нові транзакції, витрати та поповнення.
-                </p>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    onClick={() => {
-                      showToast(
-                        'Ne-OBank',
-                        '💸 Нова транзакція: -280.00 ₴',
-                        'push',
-                        {
-                          subtitle: 'Продукти & Супермаркети • Сільпо',
-                          category: 'Продукти',
-                          balance: `Готівковий залишок: ${(user.cashBalance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} ₴`,
-                          iconType: 'expense'
-                        }
-                      );
-                    }}
-                    className="p-2.5 rounded-2xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/30 text-violet-300 font-bold text-xs transition text-left flex flex-col justify-between"
-                  >
-                    <span>Тест витрати 💸</span>
-                    <span className="text-[9px] text-violet-200/50 font-normal mt-1">Симуляція списання</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      showToast(
-                        'Ne-OBank',
-                        '💰 Нова транзакція: +1,500.00 ₴',
-                        'push',
-                        {
-                          subtitle: 'Надходження готівкового доходу',
-                          category: 'Дохід',
-                          balance: `Готівковий залишок: ${(user.cashBalance / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} ₴`,
-                          iconType: 'income'
-                        }
-                      );
-                    }}
-                    className="p-2.5 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 font-bold text-xs transition text-left flex flex-col justify-between"
-                  >
-                    <span>Тест доходу 💰</span>
-                    <span className="text-[9px] text-emerald-200/50 font-normal mt-1">Симуляція поповнення</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Security Controls */}
-              <div className="p-4 rounded-3xl bg-[#121721] border border-violet-500/20 space-y-3">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider border-b border-violet-500/15 pb-2">Безпека Застосунку</h4>
-                
-                <div className="flex justify-between items-center">
                   <div>
-                    <span className="text-xs font-semibold text-white block">Біометричний захист (FaceID/TouchID)</span>
-                    <span className="text-[10px] text-violet-300/60">Запит при вході в застосунок</span>
+                    <label className="text-[11px] text-gray-300 font-bold">Баланс картки (₴)</label>
+                    <div className="flex gap-2 mt-1">
+                      <input 
+                        type="number"
+                        value={cardBalance}
+                        onChange={(e) => setCardBalance(parseFloat(e.target.value) || 0)}
+                        className="flex-1 bg-black/60 border border-purple-500/30 rounded-xl p-2.5 text-xs text-white font-mono"
+                      />
+                      <button 
+                        onClick={() => showToast("Баланс оновлено!")}
+                        className="px-4 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl"
+                      >
+                        OK
+                      </button>
+                    </div>
                   </div>
-                  <input 
-                    type="checkbox"
-                    checked={user.requireBiometrics}
-                    onChange={(e) => {
-                      updateUser({ requireBiometrics: e.target.checked });
-                      showToast('Безпека', `Біометрію ${e.target.checked ? 'увімкнено' : 'вимкнено'}`, 'info');
-                    }}
-                    className="w-4 h-4 accent-violet-400 rounded cursor-pointer"
-                  />
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-        </div>
+        </main>
 
-        {/* Bottom Tab Bar */}
-        <div className="bg-[#0A0D12] border-t border-violet-500/15 py-2 px-3 flex justify-around items-center z-40 shrink-0">
-          <button
-            onClick={() => setActiveTab('main')}
-            className={cn(
-              "flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all",
-              activeTab === 'main' ? "text-violet-400 font-bold" : "text-white/40 hover:text-white"
-            )}
-          >
-            <Wallet className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Гаманець</span>
-          </button>
+        {/* --- НИЖНЄ МЕНЮ --- */}
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] bg-[#0E0E12]/90 backdrop-blur-2xl border-t border-white/5 p-2.5 flex justify-around items-center z-40">
+          {[
+            { id: 'home', label: 'Гаманець', icon: Home },
+            { id: 'transfers', label: 'Перекази', icon: ArrowLeftRight },
+            { id: 'offers', label: 'Пропозиції', icon: Percent },
+            { id: 'support', label: 'Чат', icon: MessageSquare },
+            { id: 'settings', label: 'Профіль', icon: Settings }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition ${
+                  isActive ? 'text-[#00F5D4] font-black' : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Icon size={18} />
+                <span className="text-[9px] tracking-wide">{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
+        {/* --- MODAL: ЧЕК ТРАНЗАЦІЇ --- */}
+        {selectedTx && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+            <div className="w-full max-w-[440px] bg-[#14141A] rounded-t-3xl sm:rounded-3xl border border-white/10 p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Деталі платежу</div>
+                <button onClick={() => setSelectedTx(null)} className="p-1 bg-white/5 rounded-full text-gray-400 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
 
+              <div className="text-center py-2">
+                <div className="text-2xl font-black text-white font-mono">{selectedTx.amount.toFixed(2)} ₴</div>
+                <div className="text-xs text-gray-400 mt-1">{selectedTx.title}</div>
+              </div>
 
-          <button
-            onClick={() => setActiveTab('transfers')}
-            className={cn(
-              "flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all",
-              activeTab === 'transfers' ? "text-violet-400 font-bold" : "text-white/40 hover:text-white"
-            )}
-          >
-            <ArrowRightLeft className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Перекази</span>
-          </button>
+              <div className="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-2.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Номер квитанції:</span>
+                  <span className="text-[#00F5D4] font-bold">{selectedTx.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Дата та час:</span>
+                  <span>{selectedTx.date}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Призначення:</span>
+                  <span className="text-right text-gray-300">{selectedTx.details}</span>
+                </div>
+              </div>
 
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={cn(
-              "flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all",
-              activeTab === 'analytics' ? "text-violet-400 font-bold" : "text-white/40 hover:text-white"
-            )}
-          >
-            <PieChart className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Аналітика</span>
-          </button>
+              {(selectedTx.transferType === 'iban' || selectedTx.id.includes('39C3')) && (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-300 leading-relaxed font-medium">
+                  Зарахування на рахунок/картку одержувача залежить від банку отримувача: від термінового/моментального до 3 робочих днів (72 години).
+                </div>
+              )}
 
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={cn(
-              "flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all",
-              activeTab === 'settings' ? "text-violet-400 font-bold" : "text-white/40 hover:text-white"
-            )}
-          >
-            <Settings className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Налаштування</span>
-          </button>
-        </div>
+              <button 
+                onClick={() => downloadOfficialPDFReceipt(selectedTx)}
+                className="w-full py-3.5 bg-[#00F5D4] text-black font-black rounded-2xl text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-[#00F5D4]/20 uppercase tracking-wider"
+              >
+                <Download size={16} /> Завантажити Офіційний PDF Чек
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
-
-      {/* MODAL 1: ADD EXPENSE */}
-      {isExpenseOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Нова Витрата Готівкою</h3>
-              <button onClick={() => setIsExpenseOpen(false)} className="text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleAddExpenseSubmit} className="space-y-3">
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Сума (₴)</label>
-                <input 
-                  type="number" step="0.01" placeholder="0.00" required
-                  value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-xl placeholder-white/20 focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Категорія</label>
-                <select 
-                  value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-violet-400"
-                >
-                  <option value="Продукти & Супермаркети">Продукти & Супермаркети</option>
-                  <option value="Кафе & Ресторани">Кафе & Ресторани</option>
-                  <option value="Пальне & Авто">Пальне & Авто</option>
-                  <option value="Транспорт & Таксі">Транспорт & Таксі</option>
-                  <option value="Аптеки & Здоров'я">Аптеки & Здоров'я</option>
-                  <option value="Розваги & Дозвілля">Розваги & Дозвілля</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Назва / Опис</label>
-                <input 
-                  type="text" placeholder="Наприклад: Сильпо, Арома Кава"
-                  value={titleInput} onChange={(e) => setTitleInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <button type="submit" className="w-full py-3 rounded-2xl bg-violet-500 text-white font-extrabold text-sm hover:bg-violet-400 transition shadow-lg shadow-violet-500/25">
-                Зберегти витрату
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: ADD INCOME */}
-      {isIncomeOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Надходження Готівки</h3>
-              <button onClick={() => setIsIncomeOpen(false)} className="text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleAddIncomeSubmit} className="space-y-3">
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Сума (₴)</label>
-                <input 
-                  type="number" step="0.01" placeholder="0.00" required
-                  value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-xl placeholder-white/20 focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Джерело</label>
-                <input 
-                  type="text" placeholder="Наприклад: Зарплата готівкою, Борг від друга"
-                  value={titleInput} onChange={(e) => setTitleInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <button type="submit" className="w-full py-3 rounded-2xl bg-violet-500 text-white font-extrabold text-sm hover:bg-violet-400 transition shadow-lg shadow-violet-500/25">
-                Зарахувати дохід
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: ATM EXCHANGE */}
-      {isAtmOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Банкомат & Термінал Ne•OBank App</h3>
-              <button onClick={() => setIsAtmOpen(false)} className="text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Сума операції (₴)</label>
-                <input 
-                  type="number" step="0.01" placeholder="0.00" required
-                  value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-xl placeholder-white/20 focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleAtmAction('withdraw')}
-                  className="py-3 rounded-2xl bg-violet-500 text-white font-extrabold text-xs hover:bg-violet-400 transition"
-                >
-                  Зняти в готівку 🏧
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAtmAction('deposit')}
-                  className="py-3 rounded-2xl bg-fuchsia-600 text-white font-extrabold text-xs hover:bg-fuchsia-500 transition"
-                >
-                  Внести на картку 💳
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: TRANSFERS & PAYMENTS */}
-      <TransfersModal 
-        isOpen={isTransfersOpen}
-        onClose={() => setIsTransfersOpen(false)}
-        showToast={showToast}
-      />
-
-      {/* MODAL 5: CASHBACK */}
-      <CashbackModal
-        isOpen={isCashbackOpen}
-        onClose={() => setIsCashbackOpen(false)}
-        showToast={showToast}
-      />
-
-      {/* MODAL 6: ENVELOPE DEPOSIT/WITHDRAW */}
-      {isEnvelopeModalOpen && selectedEnvelope && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                {envelopeActionType === 'deposit' ? 'Поповнення Конверта' : 'Вилучення з Конверта'}
-              </h3>
-              <button onClick={() => setIsEnvelopeModalOpen(false)} className="text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleEnvelopeActionSubmit} className="space-y-3">
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Конверт: {selectedEnvelope.name}</label>
-                <input 
-                  type="number" step="0.01" placeholder="0.00" required
-                  value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-xl placeholder-white/20 focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <button type="submit" className="w-full py-3 rounded-2xl bg-violet-500 text-white font-extrabold text-sm hover:bg-violet-400 transition shadow-lg shadow-violet-500/25">
-                Підтвердити
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 7: CREATE ENVELOPE */}
-      {isNewEnvelopeOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Створити Новий Конверт</h3>
-              <button onClick={() => setIsNewEnvelopeOpen(false)} className="text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleCreateEnvelope} className="space-y-3">
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Назва цілі</label>
-                <input 
-                  type="text" placeholder="Наприклад: Відпустка, Ремонт" required
-                  value={newEnvName} onChange={(e) => setNewEnvName(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Цільова сума (₴)</label>
-                <input 
-                  type="number" step="0.01" placeholder="10000" required
-                  value={newEnvTarget} onChange={(e) => setNewEnvTarget(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-lg focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <button type="submit" className="w-full py-3 rounded-2xl bg-violet-500 text-white font-extrabold text-sm hover:bg-violet-400 transition shadow-lg shadow-violet-500/25">
-                Створити Конверт
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 8: JAR DEPOSIT */}
-      {isJarOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Поповнення Скарбнички</h3>
-              <button onClick={() => setIsJarOpen(false)} className="text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleDepositJarSubmit} className="space-y-3">
-              <div>
-                <label className="text-[11px] text-violet-200/80 font-medium block mb-1">Сума поповнення (₴)</label>
-                <input 
-                  type="number" step="0.01" placeholder="0.00" required
-                  value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-black/50 border border-violet-500/30 rounded-xl px-3.5 py-2.5 text-violet-300 font-bold text-xl focus:outline-none focus:border-violet-400"
-                />
-              </div>
-
-              <button type="submit" className="w-full py-3 rounded-2xl bg-violet-500 text-white font-extrabold text-sm hover:bg-violet-400 transition shadow-lg shadow-violet-500/25">
-                Закинути у Скарбничку
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 9: TRANSACTION DETAILS & OFFICIAL PDF STAMPED RECEIPT & EDIT/DELETE */}
-      {selectedTx && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0F172A] border border-violet-500/30 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
-            <div className="flex justify-between items-center border-b border-violet-500/20 pb-3">
-              <div className="flex items-center space-x-2">
-                <Receipt className="w-5 h-5 text-violet-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  {isEditingTx ? 'Редагування Транзакції' : 'Деталі Платежу'}
-                </h3>
-              </div>
-              <button 
-                onClick={() => {
-                  setSelectedTx(null);
-                  setIsEditingTx(false);
-                }} 
-                className="text-white/60 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {!isEditingTx ? (
-              <div className="space-y-4">
-                <div className="space-y-3 bg-black/40 p-4 rounded-2xl border border-violet-500/15">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-violet-200/70">Номер квитанції:</span>
-                    <span className="text-xs font-mono font-bold text-violet-300">{selectedTx.receiptNumber}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-violet-200/70">Назва:</span>
-                    <span className="text-xs font-bold text-white">{selectedTx.title}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-violet-200/70">Категорія:</span>
-                    <span className="text-xs text-white">{selectedTx.category}</span>
-                  </div>
-
-                  {selectedTx.description && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] text-violet-200/70">Опис:</span>
-                      <span className="text-xs text-violet-100">{selectedTx.description}</span>
-                    </div>
-                  )}
-
-                  {selectedTx.location && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] text-violet-200/70">Місце:</span>
-                      <span className="text-xs text-violet-100">{selectedTx.location}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-violet-200/70">Дата та час:</span>
-                    <span className="text-xs text-white font-mono">{new Date(selectedTx.date).toLocaleString('uk-UA')}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center border-t border-violet-500/10 pt-2">
-                    <span className="text-xs font-bold text-white">Сума:</span>
-                    <span className="text-base font-black text-violet-300 font-mono">
-                      {selectedTx.type === 'income' ? '+' : '-'}{(selectedTx.amount / 100).toFixed(2)} ₴
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    generateOfficialPDFReceipt(selectedTx);
-                    showToast('Ne•OBank App', 'Завантажено офіційний PDF чек з печаткою', 'success');
-                  }}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-400 hover:from-violet-400 hover:to-fuchsia-300 text-white font-extrabold text-xs shadow-lg shadow-violet-500/25 flex items-center justify-center space-x-2 transition"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Завантажити Офіційний PDF Чек з Печаткою</span>
-                </button>
-
-
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const parsedAmt = Math.round(parseFloat(editTxAmount) * 100) || selectedTx.amount;
-                  editTransaction(selectedTx.id, {
-                    title: editTxTitle.trim(),
-                    category: editTxCategory.trim(),
-                    amount: parsedAmt,
-                    description: editTxDesc.trim(),
-                    location: editTxLocation.trim()
-                  });
-                  setSelectedTx({
-                    ...selectedTx,
-                    title: editTxTitle.trim(),
-                    category: editTxCategory.trim(),
-                    amount: parsedAmt,
-                    description: editTxDesc.trim(),
-                    location: editTxLocation.trim()
-                  });
-                  setIsEditingTx(false);
-                  showToast('Ne•OBank App', 'Дані транзакції оновлено!', 'success');
-                }}
-                className="space-y-3"
-              >
-                <div>
-                  <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Назва транзакції</label>
-                  <input
-                    type="text" required
-                    value={editTxTitle} onChange={(e) => setEditTxTitle(e.target.value)}
-                    className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-400"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Категорія</label>
-                    <input
-                      type="text" required
-                      value={editTxCategory} onChange={(e) => setEditTxCategory(e.target.value)}
-                      className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Сума (₴)</label>
-                    <input
-                      type="number" step="0.01" required
-                      value={editTxAmount} onChange={(e) => setEditTxAmount(e.target.value)}
-                      className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-2 text-xs font-bold text-violet-300 focus:outline-none focus:border-violet-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Опис / Нотатки</label>
-                  <input
-                    type="text"
-                    value={editTxDesc} onChange={(e) => setEditTxDesc(e.target.value)}
-                    className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-violet-200/70 font-medium block mb-1">Місце проведення</label>
-                  <input
-                    type="text"
-                    value={editTxLocation} onChange={(e) => setEditTxLocation(e.target.value)}
-                    className="w-full bg-black/60 border border-violet-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-400"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingTx(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition"
-                  >
-                    Скасувати
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white font-extrabold text-xs shadow-lg shadow-violet-500/20 transition"
-                  >
-                    Зберегти
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 10: 30-DAY SYNC REMINDER MODAL */}
-      <SyncReminderModal
-        isOpen={isSyncReminderOpen}
-        onClose={() => setIsSyncReminderOpen(false)}
-        onExportSheets={handleExportSheets}
-        onExportDocs={handleExportDocs}
-        onExportKeep={handleExportKeep}
-        onOpenTasks={() => setIsTasksModalOpen(true)}
-        lastSyncDate={user.lastSyncDate}
-        isExporting={isExporting}
-        onSnooze30Days={handleSnooze30Days}
-      />
-
-      {/* MODAL 11: GOOGLE TASKS MODAL */}
-      <GoogleTasksModal
-        isOpen={isTasksModalOpen}
-        onClose={() => setIsTasksModalOpen(false)}
-        showToast={showToast}
-        googleToken={googleToken}
-        setGoogleToken={setGoogleToken}
-      />
-
-      {/* MODAL 12: QUICK BALANCE EDIT MODAL (1-CLICK) */}
-      <QuickBalanceEditModal
-        isOpen={isQuickBalanceEditOpen}
-        onClose={() => setIsQuickBalanceEditOpen(false)}
-        showToast={showToast}
-      />
-
-      {/* START LOCK SCREEN / BIOMETRIC AUTH */}
-      {authScreen === 'app_start' && (
-        <div className="fixed inset-0 z-50 bg-[#0A0D12] flex flex-col items-center justify-center p-6 space-y-6">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-violet-600 to-fuchsia-500 flex items-center justify-center font-black text-white text-3xl shadow-2xl shadow-violet-500/30 animate-pulse">
-            Ne
-          </div>
-
-          <div className="text-center space-y-1">
-            <h2 className="text-xl font-extrabold text-white">Ne•OBank App</h2>
-            <p className="text-xs text-violet-200/60">Вхід захищено біометрією</p>
-          </div>
-
-          <button
-            onClick={() => {
-              setAuthScreen(null);
-              showToast('Ne•OBank App', 'Доступ підтверджено через FaceID', 'success');
-            }}
-            className="p-6 rounded-full bg-violet-500/15 border border-violet-400/30 text-violet-300 hover:bg-violet-500/25 transition active:scale-90"
-          >
-            <ScanFace className="w-12 h-12" />
-          </button>
-
-          <span className="text-[11px] text-violet-300/50">Натисніть для сканування FaceID / Сканера</span>
-        </div>
-      )}
-
     </div>
   );
 }
